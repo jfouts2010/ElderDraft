@@ -8,7 +8,7 @@
 @using System.IO
 @using System.Text
 @using Microsoft.AspNetCore.WebUtilities
-@using AsyncWindowsClipboard;
+@using Radzen.Blazor
 @inject HttpClient Http
 @inject NavigationManager navManager
 <style>
@@ -83,12 +83,13 @@
     </table>
 </div>
 <div id="Paris" style="display: @(draft ? "none" : "inline");">
-    <br />
-    <br />
-    <br />
-    <br />
-    <br />
-    <br />
+    <div class="row">
+        <div class="col-md-6 col-sm-12 p-4">
+            <RadzenChart>
+                <RadzenPieSeries Data="@revenue" Fills="@(new [] { "#e8e8cc", "#4179e0", "#000000", "#eb0027", "#19691d" })" Title="Color Count" CategoryProperty="Color" ValueProperty="Count" />
+            </RadzenChart>
+        </div>
+    </div>
     <table valign="top">
         @for (int i2 = 0; i2 < 12; i2++)
         {
@@ -105,6 +106,14 @@
     </table>
 </div>
 @code {
+    class DataItem
+    {
+        public double Count { get; set; }
+    }
+
+    DataItem[] revenue = new DataItem[] {
+    };
+
     public List<string> cardList = new List<string>();
     public int currentPackCount = 0;
     public List<List<List<Card>>> allPacks = new List<List<List<Card>>>();
@@ -116,7 +125,7 @@
     public static string styleSelected = "width: 10vw;border-width: .5vw;border-style: solid; border-color: SlateBlue;";
     Dictionary<int, string> buttonStyle = new Dictionary<int, string>();
     List<int> selectedCards = new List<int>();
-    List<Card> Deck = new List<Card>();
+    static List<Card> Deck = new List<Card>();
     string setQuery = "";
     int packSelection = 0;
 
@@ -193,8 +202,8 @@
             List<Card> uncom = CubeCards.Where(p => p.rarity == "uncommon").ToList();
             List<Card> common = CubeCards.Where(p => p.rarity == "common").ToList();
             List<Card> legendaries = CubeCards.Where(p => p.type.Contains("Legendary") && p.type.Contains("Creature")).ToList();
-            List<Card> partners = AddPartners();
-            legendaries.AddRange(partners);
+            //List<Card> partners = AddPartners();
+            //legendaries.AddRange(partners);
             Random r = new Random();
             List<List<Card>> Packs = new List<List<Card>>();
             List<Card> cardsInPacks = new List<Card>();
@@ -295,6 +304,28 @@
             if (packSelection < 3)
                 CurrentPack = allPacks[packSelection][currentPackCount];
         }
+        revenue = new DataItem[] {
+        new DataItem
+        {
+            Count = Deck.Where(p=>p.colors.ContainsKey(Card.CMCColor.W)).Sum(p=>p.colors[Card.CMCColor.W])
+        },
+        new DataItem
+        {
+              Count = Deck.Where(p=>p.colors.ContainsKey(Card.CMCColor.U)).Sum(p=>p.colors[Card.CMCColor.U])
+        },
+        new DataItem
+        {
+              Count = Deck.Where(p=>p.colors.ContainsKey(Card.CMCColor.B)).Sum(p=>p.colors[Card.CMCColor.B])
+        },
+        new DataItem
+        {
+             Count = Deck.Where(p=>p.colors.ContainsKey(Card.CMCColor.R)).Sum(p=>p.colors[Card.CMCColor.R])
+        },
+         new DataItem
+        {
+             Count = Deck.Where(p=>p.colors.ContainsKey(Card.CMCColor.G)).Sum(p=>p.colors[Card.CMCColor.G])
+        },
+    };
         StateHasChanged();
     }
     public Card JsonToCard(JToken card)
@@ -420,17 +451,5 @@
         }
         return partners;
     }
-    async Task CopyToClipboard()
-    {
-        // Writing to the clipboard may be denied, so you must handle the exception
-        try
-        {
-            var clipboardService = new WindowsClipboardService();
-            await clipboardService.SetTextAsync(string.Join("\n", Deck.Select(p => p.Nickname))); // Sets the text
-        }
-        catch
-        {
-            Console.WriteLine("Cannot write text to clipboard");
-        }
-    }
+
 }
