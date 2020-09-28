@@ -1,7 +1,68 @@
 ﻿@page "/"
 
-<h1>Hello, world!</h1>
+@using Newtonsoft.Json
+@using Newtonsoft.Json.Linq
+@using System.Globalization
+@using System.Net
+@using System.Web
+@using System.Threading.Tasks
+@using System.IO
+@using System.Text
+@using Microsoft.AspNetCore.WebUtilities
+@inject NavigationManager navManager
 
-Welcome to your new app.
+<input type="text" id="set1" name="set1" @bind="@set1">
+<br>
+<br>
+<input type="text" id="set2" name="set2" @bind="@set2">
+<br>
+<br>
+<input type="text" id="set3" name="set3" @bind="@set3">
+<br>
+<br>
+<input type="text" id="setsInput" name="setsInput" @bind="@setQuery">
+<br>
+<br>
+<button class="btn btn-primary" @onclick="Submit">Submit</button>
+<br />
+<br />
+<div style="height: 500px;width: 20vw;overflow: auto;">
+    @foreach (string set in GetSets())
+    {
+        @set <br />
+    }
+</div>
+@code {
+    string set1 = "";
+    string set2 = "";
+    string set3 = "";
+    string setQuery = "-type:basic (set:tpr OR set:dtk OR set:rix)";
+    public List<string> GetSets()
+    {
+        string setsjsonstring = new Data().Sets;
 
-<SurveyPrompt Title="How is Blazor working for you?" />
+        JObject setsjo = JObject.Parse(setsjsonstring);
+        Dictionary<string, DateTime> setsRelease = new Dictionary<string, DateTime>();
+        foreach (var set in setsjo["data"])
+        {
+            string set_type = set["set_type"].ToString();
+            if (set_type == "core" || set_type == "expansion" || set_type == "commander" || set_type == "masters")
+                setsRelease.Add(set["code"].ToString() + ": " + set["name"].ToString(), DateTime.ParseExact(set["released_at"].ToString(), "yyyy-MM-dd", CultureInfo.InvariantCulture));
+        }
+        return setsRelease.OrderBy(p => p.Value).Select(p => p.Key).ToList();
+    }
+    public void Submit()
+    {
+        if (string.IsNullOrEmpty(setQuery))
+        {
+            setQuery = "-type:basic (set:" + set1.Split(new string[] { ":" }, StringSplitOptions.None)[0];
+            if (!string.IsNullOrEmpty(set2))
+                setQuery += " OR set:" + set2.Split(new string[] { ":" }, StringSplitOptions.None)[0];
+            if (!string.IsNullOrEmpty(set3))
+                setQuery += " OR set:" + set3.Split(new string[] { ":" }, StringSplitOptions.None)[0];
+            setQuery += ")";
+        }
+        var query = new Dictionary<string, string> { { "query", setQuery } };
+        navManager.NavigateTo(QueryHelpers.AddQueryString(navManager.BaseUri + "/Draft", query));
+    }
+}
