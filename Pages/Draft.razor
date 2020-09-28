@@ -108,6 +108,7 @@
 @code {
     class DataItem
     {
+        public string Color { get; set; }
         public double Count { get; set; }
     }
 
@@ -307,22 +308,27 @@
         revenue = new DataItem[] {
         new DataItem
         {
+            Color = "W",
             Count = Deck.Where(p=>p.colors.ContainsKey(Card.CMCColor.W)).Sum(p=>p.colors[Card.CMCColor.W])
         },
         new DataItem
         {
+            Color = "U",
               Count = Deck.Where(p=>p.colors.ContainsKey(Card.CMCColor.U)).Sum(p=>p.colors[Card.CMCColor.U])
         },
         new DataItem
         {
+            Color = "B",
               Count = Deck.Where(p=>p.colors.ContainsKey(Card.CMCColor.B)).Sum(p=>p.colors[Card.CMCColor.B])
         },
         new DataItem
         {
+            Color = "R",
              Count = Deck.Where(p=>p.colors.ContainsKey(Card.CMCColor.R)).Sum(p=>p.colors[Card.CMCColor.R])
         },
          new DataItem
         {
+             Color = "G",
              Count = Deck.Where(p=>p.colors.ContainsKey(Card.CMCColor.G)).Sum(p=>p.colors[Card.CMCColor.G])
         },
     };
