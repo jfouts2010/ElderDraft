@@ -8,6 +8,7 @@
 @using System.IO
 @using System.Text
 @using Microsoft.AspNetCore.WebUtilities
+@using AsyncWindowsClipboard;
 @inject HttpClient Http
 @inject NavigationManager navManager
 <style>
@@ -21,59 +22,95 @@
             transform: scale(1.5);
         }
 </style>
-<progress id="file" value="@progress" max="100"></progress>
-<table>
-    <tr>
-        <th valign="top">
-            <button class="btn btn-primary" @onclick="SelectCards" style="visibility: @confirmButton;">Confirm</button>
-        </th>
-        <th valign="top">
-            <table>
-                <tr>
-                    @for (int i = 0; i < 5; i++)
+
+<button class="btn btn-primary" @onclick="Swap">Swap</button>
+<br />
+<div id="Draft" style="display:  @(!draft ? "none" : "inline");">
+    <progress id="file" value="@progress" max="100"></progress>
+    <table>
+        <tr>
+            <th valign="top">
+                <button class="btn btn-primary" @onclick="SelectCards" style="visibility: @confirmButton;">Confirm</button>
+                <br />
+                <textarea style="height: 500px;width: 20vw;overflow: auto;">
+                    @foreach (string card in cardList)
                     {
-                        var buttonNumber = i;
-                        <th>
-                            <img src=@(CurrentPack.Count > i ? CurrentPack[i].lowresimgurl : "") @onclick="@(e => SelectCard(e, buttonNumber))" style="@buttonStyle[i]">
-                        </th>
+                        @(card + "\n")
                     }
-                </tr>
-                <tr>
-                    @for (int i = 5; i < 10; i++)
-                    {
-                        var buttonNumber = i;
-                        <th>
-                            <img src=@(CurrentPack.Count > i ? CurrentPack[i].lowresimgurl : "") @onclick="@(e => SelectCard(e, buttonNumber))" style="@buttonStyle[i]">
-                        </th>
-                    }
-                </tr>
-                <tr>
-                    @for (int i = 10; i < 15; i++)
-                    {
-                        var buttonNumber = i;
-                        <th>
-                            <img src=@(CurrentPack.Count > i ? CurrentPack[i].lowresimgurl : "") @onclick="@(e => SelectCard(e, buttonNumber))" style="@buttonStyle[i]">
-                        </th>
-                    }
-                </tr>
-                <tr>
-                    @for (int i = 15; i < 20; i++)
-                    {
-                        var buttonNumber = i;
-                        <th>
-                            <img src=@(CurrentPack.Count > i ? CurrentPack[i].lowresimgurl : "") @onclick="@(e => SelectCard(e, buttonNumber))" style="@buttonStyle[i]">
-                        </th>
-                    }
-                </tr>
-            </table>
-        </th>
-    </tr>
-</table>
+                </textarea>
+            </th>
+            <th valign="top">
+                <table>
+                    <tr>
+                        @for (int i = 0; i < 5; i++)
+                        {
+                            var buttonNumber = i;
+                            <th>
+                                <img src=@(CurrentPack.Count > i ? CurrentPack[i].lowresimgurl : "") @onclick="@(e => SelectCard(e, buttonNumber))" style="@buttonStyle[i]">
+                            </th>
+                        }
+                    </tr>
+                    <tr>
+                        @for (int i = 5; i < 10; i++)
+                        {
+                            var buttonNumber = i;
+                            <th>
+                                <img src=@(CurrentPack.Count > i ? CurrentPack[i].lowresimgurl : "") @onclick="@(e => SelectCard(e, buttonNumber))" style="@buttonStyle[i]">
+                            </th>
+                        }
+                    </tr>
+                    <tr>
+                        @for (int i = 10; i < 15; i++)
+                        {
+                            var buttonNumber = i;
+                            <th>
+                                <img src=@(CurrentPack.Count > i ? CurrentPack[i].lowresimgurl : "") @onclick="@(e => SelectCard(e, buttonNumber))" style="@buttonStyle[i]">
+                            </th>
+                        }
+                    </tr>
+                    <tr>
+                        @for (int i = 15; i < 20; i++)
+                        {
+                            var buttonNumber = i;
+                            <th>
+                                <img src=@(CurrentPack.Count > i ? CurrentPack[i].lowresimgurl : "") @onclick="@(e => SelectCard(e, buttonNumber))" style="@buttonStyle[i]">
+                            </th>
+                        }
+                    </tr>
+                </table>
+            </th>
+        </tr>
+    </table>
+</div>
+<div id="Paris" style="display: @(draft ? "none" : "inline");">
+    <br />
+    <br />
+    <br />
+    <br />
+    <br />
+    <br />
+    <table valign="top">
+        @for (int i2 = 0; i2 < 12; i2++)
+        {
+            <tr valign="top">
+                @for (int i = 0 + i2 * 5; i < 5 + i2 * 5; i++)
+                {
+                    var buttonNumber = i;
+                    <th valign="top">
+                        <img src=@(Deck.Count > i ? Deck[i].lowresimgurl : "") style="@styleDefault">
+                    </th>
+                }
+            </tr>
+        }
+    </table>
+</div>
 @code {
+    public List<string> cardList = new List<string>();
     public int currentPackCount = 0;
     public List<List<List<Card>>> allPacks = new List<List<List<Card>>>();
     public List<Card> CurrentPack = new List<Card>();
     public string confirmButton = "hidden";
+    public bool draft = true;
     public int progress = 0;
     public static string styleDefault = "width: 10vw;";
     public static string styleSelected = "width: 10vw;border-width: .5vw;border-style: solid; border-color: SlateBlue;";
@@ -87,6 +124,10 @@
     {
         await Startup();
         Submit();
+    }
+    public void Swap()
+    {
+        draft = !draft;
     }
     Task Startup()
     {
@@ -229,6 +270,7 @@
         buttonStyle[selectedCards[0]] = styleDefault;
         buttonStyle[selectedCards[1]] = styleDefault;
         selectedCards.Clear();
+        cardList = Deck.Select(p => p.Nickname).ToList();
         //richTextBox1.Text = string.Join("\n", Deck.Select(p => p.Nickname));
         currentPackCount++;
         if (currentPackCount == 8)
@@ -250,7 +292,8 @@
         if (CurrentPack.Count() == 0)
         {
             packSelection++;
-            CurrentPack = allPacks[packSelection][currentPackCount];
+            if (packSelection < 3)
+                CurrentPack = allPacks[packSelection][currentPackCount];
         }
         StateHasChanged();
     }
@@ -376,5 +419,18 @@
                 partners.Add(newCard);
         }
         return partners;
+    }
+    async Task CopyToClipboard()
+    {
+        // Writing to the clipboard may be denied, so you must handle the exception
+        try
+        {
+            var clipboardService = new WindowsClipboardService();
+            await clipboardService.SetTextAsync(string.Join("\n", Deck.Select(p => p.Nickname))); // Sets the text
+        }
+        catch
+        {
+            Console.WriteLine("Cannot write text to clipboard");
+        }
     }
 }
