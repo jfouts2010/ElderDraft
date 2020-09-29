@@ -11,6 +11,7 @@
 @using System.Text;
 @using System.Threading.Tasks;
 @inject IJSRuntime JSRuntime
+@inject HttpClient Http
 <h3>NewDeck</h3>
 <table>
     <tr>
@@ -34,19 +35,10 @@
     public string cardsString = "";
     public async void Submit()
     {
-        Task<string> output = FullCreate(commander, cardsString, fixlands);
-        await JSRuntime.InvokeAsync<object>(
-        "FileSaveAs",
-        "Deck - " + DateTime.Now.ToShortDateString().Replace('/', '-') + ".json",
-        output.Result
-        );
-    }
-    public static async Task<string> FullCreate(string commander, string deckString, bool fixlands)
-    {
         string deckCommander = "";
         deckCommander = commander.Trim();
         Card CommanderCard = null;
-        List<string> deck = deckString.Split(new string[] { "\n" }, StringSplitOptions.None).ToList();
+        List<string> deck = cardsString.Split(new string[] { "\n" }, StringSplitOptions.None).ToList();
         deck.Add(commander);
         List<Identifier> identifiers = new List<Identifier>();
         Dictionary<string, object> data = new Dictionary<string, object>();
@@ -133,125 +125,116 @@
         List<string> tokenSearchIds = new List<string>();
         string jsondata1 = JsonConvert.SerializeObject(calls.First());
         string jsondata2 = JsonConvert.SerializeObject(calls.Last());
-        for (int i2 = 0; i2 < calls.Count; i2++)
+
+
+        var cli = new HttpClient();
+        string content = "";
+
+        var buffer = System.Text.Encoding.UTF8.GetBytes(jsondata1);
+        var byteContent = new ByteArrayContent(buffer);
+        byteContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        var asdf = await cli.PostAsync("https://api.scryfall.com/cards/collection", byteContent);
+        content = await asdf.Content.ReadAsStringAsync();
+
+        List<string> notfound = new List<string>();
+
+        JObject jsonResponse = JObject.Parse(content);
+        foreach (var selection in jsonResponse["not_found"])
+            foreach (var card in selection)
+                notfound.Add(card.First.ToString());
+        foreach (var card in jsonResponse["data"])
         {
-            var cli = new HttpClient();
-            string content = "";
-            if (i2 == 0)
-            {
-                var buffer = System.Text.Encoding.UTF8.GetBytes(jsondata1);
-                var byteContent = new ByteArrayContent(buffer);
-                byteContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-                var asdf = await cli.PostAsync("https://api.scryfall.com/cards/collection", byteContent);
-                content = await asdf.Content.ReadAsStringAsync();
-            }
-            else
-            {
-                var buffer = System.Text.Encoding.UTF8.GetBytes(jsondata2);
-                var byteContent = new ByteArrayContent(buffer);
-                byteContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-                var asdf = await cli.PostAsync("https://api.scryfall.com/cards/collection", byteContent);
-                content = await asdf.Content.ReadAsStringAsync();
-            }
-            List<string> notfound = new List<string>();
+            string url = "";
 
-            JObject jsonResponse = JObject.Parse(content);
-            foreach (var selection in jsonResponse["not_found"])
-                foreach (var card in selection)
-                    notfound.Add(card.First.ToString());
-            foreach (var card in jsonResponse["data"])
+            string name = card["name"].ToString();
+            if (name.Contains("/"))
+                name = name.Split('/')[0];
+            if (card["card_faces"] != null && card["image_uris"] == null)
             {
-                string url = "";
-
-                string name = card["name"].ToString();
-                if (name.Contains("/"))
-                    name = name.Split('/')[0];
-                if (card["card_faces"] != null && card["image_uris"] == null)
+                for (int i = 0; i < card["card_faces"].Count(); i++)
                 {
-                    for (int i = 0; i < card["card_faces"].Count(); i++)
+                    var cardInfo = card["card_faces"][i];
+                    if (i == 0)
                     {
-                        var cardInfo = card["card_faces"][i];
-                        if (i == 0)
-                        {
-                            url = cardInfo["image_uris"]["large"].ToString();
-                            name = cardInfo["name"].ToString();
-                        }
-                        else
-                        {
-                            //needs to check if it has image uris
+                        url = cardInfo["image_uris"]["large"].ToString();
+                        name = cardInfo["name"].ToString();
+                    }
+                    else
+                    {
+                        //needs to check if it has image uris
 
-                            Card c = new Card()
-                            {
-                                Nickname = cardInfo["name"].ToString(),
-                                count = 1,
-                                imgurl = cardInfo["image_uris"]["large"].ToString()
-                            };
-                            tokens.Add(c);
-                        }
+                        Card c = new Card()
+                        {
+                            Nickname = cardInfo["name"].ToString(),
+                            count = 1,
+                            imgurl = cardInfo["image_uris"]["large"].ToString()
+                        };
+                        tokens.Add(c);
                     }
                 }
-                else
-                    url = card["image_uris"]["large"].ToString();
+            }
+            else
+                url = card["image_uris"]["large"].ToString();
 
 
-                string manacost = "0";
+            string manacost = "0";
 
-                int cmc = 0;
-                JArray colorid = new JArray();
+            int cmc = 0;
+            JArray colorid = new JArray();
 
-                try
+            try
+            {
+                manacost = card["mana_cost"].ToString();
+                cmc = Convert.ToInt32(card["cmc"].ToString());
+                colorid = (JArray)card["color_identity"];
+            }
+            catch { }
+            if (name.StartsWith("Kala"))
+            {
+
+            }
+            name = name.ToLower().Trim();
+            foreach (List<Card> stack in cards)
+            {
+                foreach (Card setcard in stack.Where(p => name.Contains(p.fixed_name()) || name.Contains(p.fixed_split_name())))
                 {
-                    manacost = card["mana_cost"].ToString();
-                    cmc = Convert.ToInt32(card["cmc"].ToString());
-                    colorid = (JArray)card["color_identity"];
-                }
-                catch { }
-                if (name.StartsWith("Kala"))
-                {
-
-                }
-                name = name.ToLower().Trim();
-                foreach (List<Card> stack in cards)
-                {
-                    foreach (Card setcard in stack.Where(p => name.Contains(p.fixed_name()) || name.Contains(p.fixed_split_name())))
+                    setcard.imgurl = url;
+                    setcard.cmc = cmc;
+                    foreach (Card.CMCColor c in Enum.GetValues(typeof(Card.CMCColor)))
                     {
                         setcard.imgurl = url;
                         setcard.cmc = cmc;
-                        foreach (Card.CMCColor c in Enum.GetValues(typeof(Card.CMCColor)))
-                        {
-                            setcard.imgurl = url;
-                            setcard.cmc = cmc;
 
-                            if (setcard.colors.ContainsKey(c))
-                                continue;
-                            if (cmc > 0)
+                        if (setcard.colors.ContainsKey(c))
+                            continue;
+                        if (cmc > 0)
+                        {
+                            //not a land
+                            int count = manacost.Count(p => p == c.ToString()[0]);
+                            if (count > 0)
+                                setcard.colors.Add(c, count);
+                        }
+                        else
+                        {
+                            //is a land. get its colors!
+                            if (colorid.Any(p => p.ToString() == c.ToString()))
                             {
-                                //not a land
-                                int count = manacost.Count(p => p == c.ToString()[0]);
-                                if (count > 0)
-                                    setcard.colors.Add(c, count);
-                            }
-                            else
-                            {
-                                //is a land. get its colors!
-                                if (colorid.Any(p => p.ToString() == c.ToString()))
-                                {
-                                    setcard.colors.Add(c, 0);
-                                }
+                                setcard.colors.Add(c, 0);
                             }
                         }
                     }
                 }
-                if (deckCommander.ToLower().Trim() == name)
-                    CommanderCard.imgurl = url;
-                //check for tokens
-                if (card["all_parts"] != null)
-                    foreach (var part in card["all_parts"])
-                        if (part["component"].ToString() == "token")
-                            tokenSearchIds.Add(part["id"].ToString());
             }
-
+            if (deckCommander.ToLower().Trim() == name)
+                CommanderCard.imgurl = url;
+            //check for tokens
+            if (card["all_parts"] != null)
+                foreach (var part in card["all_parts"])
+                    if (part["component"].ToString() == "token")
+                        tokenSearchIds.Add(part["id"].ToString());
         }
+
+
 
         //token search
         if (tokenSearchIds.Count > 1)
@@ -267,43 +250,27 @@
             Dictionary<string, object> tokenD = new Dictionary<string, object>();
             tokenD.Add("identifiers", tokenidentifiers);
             string jsondata = JsonConvert.SerializeObject(tokenD);
-            HttpWebRequest request = System.Net.WebRequest.Create("https://api.scryfall.com/cards/collection") as HttpWebRequest;
-            request.Method = "POST";
-            request.ContentType = "application/json";
-            ASCIIEncoding encoding = new ASCIIEncoding();
-            byte[] byte1 = encoding.GetBytes(jsondata);
-            request.ContentLength = byte1.Length;
-            Stream newStream = request.GetRequestStream();
-            newStream.Write(byte1, 0, byte1.Length);
-            List<string> notfound = new List<string>();
-            Dictionary<string, string> CardAndURL = new Dictionary<string, string>();
-            using (HttpWebResponse response = request.GetResponse() as HttpWebResponse)
+            buffer = System.Text.Encoding.UTF8.GetBytes(jsondata);
+            byteContent = new ByteArrayContent(buffer);
+            byteContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+            asdf = await cli.PostAsync("https://api.scryfall.com/cards/collection", byteContent);
+            content = await asdf.Content.ReadAsStringAsync();
+            jsonResponse = JObject.Parse(content);
+            foreach (var card in jsonResponse["data"])
             {
-                Stream receiveStream = response.GetResponseStream();
-                StreamReader readStream = null;
-                if (response.CharacterSet == null || response.CharacterSet == "")
-                    readStream = new StreamReader(receiveStream);
-                else
-                    readStream = new StreamReader(receiveStream, Encoding.GetEncoding(response.CharacterSet));
-                string content = readStream.ReadToEnd();
-                JObject jsonResponse = JObject.Parse(content);
-                foreach (var card in jsonResponse["data"])
-                {
-                    string url = card["image_uris"]["large"].ToString();
-                    string name = card["name"].ToString();
-                    if (!tokens.Any(p => p.Nickname == name))
-                        tokens.Add(new Card()
-                        {
-                            imgurl = url,
-                            Nickname = name,
-                            //CardID = cardI++ * 100,
-                            count = 1,
+                string url = card["image_uris"]["large"].ToString();
+                string name = card["name"].ToString();
+                if (!tokens.Any(p => p.Nickname == name))
+                    tokens.Add(new Card()
+                    {
+                        imgurl = url,
+                        Nickname = name,
+                        //CardID = cardI++ * 100,
+                        count = 1,
 
-                        });
+                    });
 
-                }
             }
-
         }
         if (tokens.Count > 0)
             cards.Add(tokens);
@@ -320,6 +287,12 @@
 
         TabletopDeck final = new TabletopDeck(cards, false, fixlands);
         string output = JsonConvert.SerializeObject(final, Formatting.Indented);
-        return output;
+        int x = 5;
+        await JSRuntime.InvokeAsync<object>(
+        "FileSaveAs",
+        "Deck - " + DateTime.Now.ToShortDateString().Replace('/', '-') + ".json",
+        output
+        );
     }
+   
 }
