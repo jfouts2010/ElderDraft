@@ -233,7 +233,115 @@
                     if (part["component"].ToString() == "token")
                         tokenSearchIds.Add(part["id"].ToString());
         }
+        if (calls.Count == 2)
+        {
+            cli = new HttpClient();
+            content = "";
 
+            buffer = System.Text.Encoding.UTF8.GetBytes(jsondata2);
+            byteContent = new ByteArrayContent(buffer);
+            byteContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+            asdf = await cli.PostAsync("https://api.scryfall.com/cards/collection", byteContent);
+            content = await asdf.Content.ReadAsStringAsync();
+
+            notfound = new List<string>();
+
+            jsonResponse = JObject.Parse(content);
+            foreach (var selection in jsonResponse["not_found"])
+                foreach (var card in selection)
+                    notfound.Add(card.First.ToString());
+            foreach (var card in jsonResponse["data"])
+            {
+                string url = "";
+
+                string name = card["name"].ToString();
+                if (name.Contains("/"))
+                    name = name.Split('/')[0];
+                if (card["card_faces"] != null && card["image_uris"] == null)
+                {
+                    for (int i = 0; i < card["card_faces"].Count(); i++)
+                    {
+                        var cardInfo = card["card_faces"][i];
+                        if (i == 0)
+                        {
+                            url = cardInfo["image_uris"]["large"].ToString();
+                            name = cardInfo["name"].ToString();
+                        }
+                        else
+                        {
+                            //needs to check if it has image uris
+
+                            Card c = new Card()
+                            {
+                                Nickname = cardInfo["name"].ToString(),
+                                count = 1,
+                                imgurl = cardInfo["image_uris"]["large"].ToString()
+                            };
+                            tokens.Add(c);
+                        }
+                    }
+                }
+                else
+                    url = card["image_uris"]["large"].ToString();
+
+
+                string manacost = "0";
+
+                int cmc = 0;
+                JArray colorid = new JArray();
+
+                try
+                {
+                    manacost = card["mana_cost"].ToString();
+                    cmc = Convert.ToInt32(card["cmc"].ToString());
+                    colorid = (JArray)card["color_identity"];
+                }
+                catch { }
+                if (name.StartsWith("Kala"))
+                {
+
+                }
+                name = name.ToLower().Trim();
+                foreach (List<Card> stack in cards)
+                {
+                    foreach (Card setcard in stack.Where(p => name.Contains(p.fixed_name()) || name.Contains(p.fixed_split_name())))
+                    {
+                        setcard.imgurl = url;
+                        setcard.cmc = cmc;
+                        foreach (Card.CMCColor c in Enum.GetValues(typeof(Card.CMCColor)))
+                        {
+                            setcard.imgurl = url;
+                            setcard.cmc = cmc;
+
+                            if (setcard.colors.ContainsKey(c))
+                                continue;
+                            if (cmc > 0)
+                            {
+                                //not a land
+                                int count = manacost.Count(p => p == c.ToString()[0]);
+                                if (count > 0)
+                                    setcard.colors.Add(c, count);
+                            }
+                            else
+                            {
+                                //is a land. get its colors!
+                                if (colorid.Any(p => p.ToString() == c.ToString()))
+                                {
+                                    setcard.colors.Add(c, 0);
+                                }
+                            }
+                        }
+                    }
+                }
+                if (deckCommander.ToLower().Trim() == name)
+                    CommanderCard.imgurl = url;
+                //check for tokens
+                if (card["all_parts"] != null)
+                    foreach (var part in card["all_parts"])
+                        if (part["component"].ToString() == "token")
+                            tokenSearchIds.Add(part["id"].ToString());
+            }
+        }
 
 
         //token search
@@ -284,15 +392,15 @@
               cards.Add(commander);
           }*/
 
-
+        string deckname = (string.IsNullOrEmpty(deckCommander) ? "" : deckCommander + " ") + "Deck-" + DateTime.Now.ToShortDateString().Replace('/', '-') + ".json";
         TabletopDeck final = new TabletopDeck(cards, false, fixlands);
         string output = JsonConvert.SerializeObject(final, Formatting.Indented);
         int x = 5;
         await JSRuntime.InvokeAsync<object>(
         "FileSaveAs",
-        "Deck - " + DateTime.Now.ToShortDateString().Replace('/', '-') + ".json",
+        deckname,
         output
         );
     }
-   
+
 }
