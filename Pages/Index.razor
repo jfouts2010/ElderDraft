@@ -10,25 +10,18 @@
 @using System.Text
 @using Microsoft.AspNetCore.WebUtilities
 @inject NavigationManager navManager
-<input type="text" id="set1" name="set1" @bind="@set1">
-<br>
-<br>
-<input type="text" id="set2" name="set2" @bind="@set2">
-<br>
-<br>
-<input type="text" id="set3" name="set3" @bind="@set3">
-<br>
-<br>
 <input type="text" id="setsInput" name="setsInput" @bind="@setQuery">
+<button class="btn btn-primary" @onclick="GenerateQuery">Generate Query</button>
 <br>
 <br>
 <button class="btn btn-primary" @onclick="Submit">Submit</button>
 <br />
 <br />
-<div style="height: 500px;width: 20vw;overflow: auto;">
-    @foreach (string set in GetSets())
+<div>
+    @for (int i = 0; i < Sets.Count; i++)
     {
-        @set <br />
+        var buttonNumber = i;
+        <input type="checkbox" id="" name="" value="" @onclick="@(e => SelectSet(buttonNumber))"> @Sets[i]<br />
     }
 </div>
 @code {
@@ -36,10 +29,35 @@
     bool Pick { get; set; }
     [CascadingParameter(Name = "SideBoard")]
     bool SideBoard { get; set; }
-    string set1 = "";
-    string set2 = "";
-    string set3 = "";
+    int count = 0;
     string setQuery = "-type:basic (set:tpr OR set:dtk OR set:rix)";
+    List<int> selectedSets = new List<int>();
+    List<string> Sets = new List<string>();
+    protected override async Task OnInitializedAsync()
+    {
+        Sets = GetSets();
+        await Task.CompletedTask;
+    }
+    public void SelectSet(int count)
+    {
+        if (selectedSets.Contains(count))
+            selectedSets.Remove(count);
+        else
+            selectedSets.Add(count);
+    }
+    public void GenerateQuery()
+    {
+        List<string> setstrings = new List<string>();
+        foreach(int set in selectedSets)
+        {
+            string selectedset = GetSets()[set];
+            var options = selectedset.Split(new string[] { ":" }, StringSplitOptions.None);
+            string acronym = options[0];
+            setstrings.Add("set:" + acronym);
+        }
+        setQuery = "-type:basic (" + string.Join(" OR ", setstrings) +  ")";
+        StateHasChanged();
+    }
     public List<string> GetSets()
     {
         string setsjsonstring = new Data().Sets;
@@ -56,15 +74,7 @@
     }
     public void Submit()
     {
-        if (string.IsNullOrEmpty(setQuery))
-        {
-            setQuery = "-type:basic (set:" + set1.Split(new string[] { ":" }, StringSplitOptions.None)[0];
-            if (!string.IsNullOrEmpty(set2))
-                setQuery += " OR set:" + set2.Split(new string[] { ":" }, StringSplitOptions.None)[0];
-            if (!string.IsNullOrEmpty(set3))
-                setQuery += " OR set:" + set3.Split(new string[] { ":" }, StringSplitOptions.None)[0];
-            setQuery += ")";
-        }
+        GenerateQuery();
         var query = new Dictionary<string, string> { { "query", setQuery } };
         navManager.NavigateTo(QueryHelpers.AddQueryString(navManager.BaseUri + "/Draft", query));
     }
