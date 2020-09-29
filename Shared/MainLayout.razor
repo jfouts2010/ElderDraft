@@ -1,5 +1,5 @@
 ﻿@inherits LayoutComponentBase
-
+@inject NavigationManager MyNavigationManager
 <div class="sidebar">
     <div class="top-row pl-4 navbar navbar-dark">
         <a class="navbar-brand" href="">ElderDraft</a>
@@ -22,11 +22,14 @@
             </li>
             <br />
             <br />
-            <li class="nav-item px-3">
-                <NavLink class="nav-link" href="NewDeck" Match="NavLinkMatch.All">
-                    <span class="oi oi-account-login" aria-hidden="true"></span> Export Deck
-                </NavLink>
-            </li>
+            @if (Home)
+            {
+                <li class="nav-item px-3">
+                    <NavLink class="nav-link" href="NewDeck" Match="NavLinkMatch.All">
+                        <span class="oi oi-account-login" aria-hidden="true"></span> Export Deck
+                    </NavLink>
+                </li>
+            }
         </ul>
     </div>
 </div>
@@ -49,8 +52,12 @@
     public bool Pick = true;
     public bool SideBoard = false;
     private bool collapseNavMenu = true;
-
+    public bool Home { get { return MyNavigationManager.Uri == MyNavigationManager.BaseUri; } }
     private string NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+    protected override async Task OnInitializedAsync()
+    {
+        await Task.CompletedTask;
+    }
     private void ToggleNavMenu()
     {
         collapseNavMenu = !collapseNavMenu;
