@@ -10,7 +10,6 @@
 @using System.Text
 @using Microsoft.AspNetCore.WebUtilities
 @inject NavigationManager navManager
-
 <input type="text" id="set1" name="set1" @bind="@set1">
 <br>
 <br>
@@ -33,6 +32,10 @@
     }
 </div>
 @code {
+    [CascadingParameter(Name = "Pick")]
+    bool Pick { get; set; }
+    [CascadingParameter(Name = "SideBoard")]
+    bool SideBoard { get; set; }
     string set1 = "";
     string set2 = "";
     string set3 = "";
