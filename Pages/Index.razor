@@ -30,7 +30,7 @@
     [CascadingParameter(Name = "SideBoard")]
     bool SideBoard { get; set; }
     int count = 0;
-    string setQuery = "-type:basic (set:tpr OR set:dtk OR set:rix)";
+    string setQuery = "";
     List<int> selectedSets = new List<int>();
     List<string> Sets = new List<string>();
     protected override async Task OnInitializedAsync()
@@ -74,7 +74,10 @@
     }
     public void Submit()
     {
-        GenerateQuery();
+        if(string.IsNullOrEmpty(setQuery))
+        {
+            GenerateQuery();
+        }
         var query = new Dictionary<string, string> { { "query", setQuery } };
         navManager.NavigateTo(QueryHelpers.AddQueryString(navManager.BaseUri + "/Draft", query));
     }
