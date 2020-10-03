@@ -43,6 +43,14 @@
                     <RadzenLegend Visible="false" />
                 </RadzenChart>
             </th>
+            <th style="width:800px;" align="center">
+                <RadzenChart>
+                    <RadzenColumnSeries Data="@typedata" CategoryProperty="Type" Title="Count" ValueProperty="Count" />
+                    <RadzenColumnOptions Margin="0" />
+                    <RadzenValueAxis />
+                    <RadzenLegend Visible="false" />
+                </RadzenChart>
+            </th>
         </tr>
     </table>
     <div id="Draft" style="display:  @(!Pick ? "none" : "inline");">
@@ -205,10 +213,17 @@ TabletopDeck.Create(cards)
         public string CMC { get; set; }
         public double Count { get; set; }
     }
+    class TypeDataItem
+    {
+        public string Type { get; set; }
+        public double Count { get; set; }
+    }
 
     ColorDataItem[] colordata = new ColorDataItem[] {
     };
     CMCDataItem[] cmcdata = new CMCDataItem[] {
+    };
+    TypeDataItem[] typedata = new TypeDataItem[] {
     };
     [CascadingParameter(Name = "Pick")]
     bool Pick { get; set; }
@@ -318,7 +333,7 @@ TabletopDeck.Create(cards)
             List<string> cardnames = new List<string>();
             List<string> themes = setQuery.Split(',').ToList();
             themesReadable = string.Join(',', themes.Select(p => p.Replace("/themes/", "").Replace("/tribes/", "")));
-            foreach(string themeName in themes)
+            foreach (string themeName in themes)
             {
                 Theme t = Themes.First(p => p.name == themeName);
                 cardnames.AddRange(t.cards);
@@ -379,15 +394,17 @@ TabletopDeck.Create(cards)
             Random r = new Random();
             List<List<Card>> Packs = new List<List<Card>>();
             List<Card> cardsInPacks = new List<Card>();
+
             for (int i = 0; i < 8; i++)
             {
                 List<Card> packCards = new List<Card>();
-
+                int lands = 0;
+                bool banLands = lands >= 4;
                 //legendaries
                 for (int l = 0; l < 2; l++)
                 {
                     bool myth = false;
-                    List<Card> availLegendaries = legendaries.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p)).ToList();
+                    List<Card> availLegendaries = legendaries.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p) && !p.type.ToLower().Contains("land")).ToList();
                     if (myth)
                         availLegendaries = availLegendaries.Where(p => p.rarity != "mythic").ToList();
                     Card c = availLegendaries[r.Next(0, availLegendaries.Count())];
@@ -403,30 +420,46 @@ TabletopDeck.Create(cards)
                     if (!myth && gotMyth)
                     {
                         List<Card> availMyth = Myth.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p)).ToList();
+                        if (banLands)
+                            availMyth = availMyth.Where(p => !p.type.ToLower().Contains("land")).ToList();
                         Card c = availMyth[r.Next(0, availMyth.Count())];
                         myth = true;
                         packCards.Add(c);
+                        if (c.type.ToLower().Contains("land"))
+                            lands++;
                     }
                     else
                     {
                         List<Card> availRare = rare.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p)).ToList();
+                        if (banLands)
+                            availRare = availRare.Where(p => !p.type.ToLower().Contains("land")).ToList();
                         Card c = availRare[r.Next(0, availRare.Count())];
                         packCards.Add(c);
+                        if (c.type.ToLower().Contains("land"))
+                            lands++;
                     }
                 }
                 //uncommons
                 for (int l = 0; l < 8; l++)
                 {
                     List<Card> availuncomm = uncom.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p)).ToList();
+                    if (banLands)
+                        availuncomm = availuncomm.Where(p => !p.type.ToLower().Contains("land")).ToList();
                     Card c = availuncomm[r.Next(0, availuncomm.Count())];
                     packCards.Add(c);
+                    if (c.type.ToLower().Contains("land"))
+                        lands++;
                 }
                 //commons
                 for (int l = 0; l < 4; l++)
                 {
                     List<Card> availcommon = common.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p)).ToList();
+                    if (banLands)
+                        availcommon = availcommon.Where(p => !p.type.ToLower().Contains("land")).ToList();
                     Card c = availcommon[r.Next(0, availcommon.Count())];
                     packCards.Add(c);
+                    if (c.type.ToLower().Contains("land"))
+                        lands++;
                 }
                 Packs.Add(packCards);
                 cardsInPacks.AddRange(packCards);
@@ -571,6 +604,38 @@ TabletopDeck.Create(cards)
             Count = Deck.Where(p=>p.cmc >= 7).Count()
         },
     };
+        typedata = new TypeDataItem[] {
+        new TypeDataItem
+        {
+            Type = "Creature",
+            Count = Deck.Where(p=>p.type.ToLower().Contains("creature")).Count()
+        },
+        new TypeDataItem
+        {
+            Type = "Instant",
+            Count = Deck.Where(p=>p.type.ToLower().Contains("instant")).Count()
+        },
+        new TypeDataItem
+        {
+           Type = "Sorcery",
+            Count = Deck.Where(p=>p.type.ToLower().Contains("sorcery")).Count()
+        },
+        new TypeDataItem
+        {
+            Type = "Artifact",
+            Count = Deck.Where(p=>p.type.ToLower().Contains("artifact")).Count()
+        },
+        new TypeDataItem
+        {
+           Type = "Enchmnt",
+            Count = Deck.Where(p=>p.type.ToLower().Contains("enchantment")).Count()
+        },
+        new TypeDataItem
+        {
+           Type = "Land",
+            Count = Deck.Where(p=>p.type.ToLower().Contains("land")).Count()
+        },
+    };
         StateHasChanged();
     }
     public Card JsonToCard(JToken card)
@@ -587,7 +652,7 @@ TabletopDeck.Create(cards)
         string url = "";
         string lowresurl = "";
         string name = card["name"].ToString();
-
+        //  string type = card["type_line"].ToString();
         if (name.Contains("/"))
             name = name.Split('/')[0];
         if (card["card_faces"] != null && card["image_uris"] == null)
