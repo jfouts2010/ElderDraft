@@ -78,7 +78,7 @@
         {
             GenerateQuery();
         }
-        var query = new Dictionary<string, string> { { "query", setQuery } };
+        var query = new Dictionary<string, string> { { "query", setQuery }, { "themeddraft", false.ToString() } };
         navManager.NavigateTo(QueryHelpers.AddQueryString(navManager.BaseUri + "/Draft", query));
     }
 }

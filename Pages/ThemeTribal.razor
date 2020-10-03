@@ -1,0 +1,60 @@
+﻿@page "/ThemeTribal"
+
+@using Newtonsoft.Json
+@using Newtonsoft.Json.Linq
+@using System.Globalization
+@using System.Net
+@using System.Web
+@using System.Threading.Tasks
+@using System.IO
+@using System.Text
+@using Microsoft.AspNetCore.WebUtilities
+@using Radzen.Blazor
+@using Blazored.LocalStorage;
+@inject NavigationManager navManager
+
+<input type="text" id="setsInput" name="setsInput" @bind="@setQuery">
+<button class="btn btn-primary" @onclick="GenerateQuery">Generate Query</button>
+<br>
+@readableQuery
+<br>
+<button class="btn btn-primary" @onclick="Submit">Submit</button>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        Themes = JsonConvert.DeserializeObject<List<Theme>>(new Data().ThemesString);
+        Themes.AddRange(JsonConvert.DeserializeObject<List<Theme>>(new Data().ThemesString));
+        await Task.CompletedTask;
+    }
+    class Theme
+    {
+        public string name;
+        public List<string> cards;
+    }
+    public string setQuery = "";
+    public string readableQuery = "";
+    List<Theme> Themes = new List<Theme>();
+    public void GenerateQuery()
+    {
+        Random r = new Random();
+        int totalThemes = Themes.Count;
+        List<int> themeNumbers = new List<int>();
+        while (themeNumbers.Count < 6)
+        {
+            int rand = r.Next(0, totalThemes);
+            if (!themeNumbers.Contains(rand))
+                themeNumbers.Add(rand);
+        }
+        setQuery = string.Join(',', themeNumbers.Select(p => Themes[p].name).ToList());
+        readableQuery = string.Join(',', themeNumbers.Select(p => Themes[p].name.Replace("/themes/", "").Replace("/tribes/", "")));
+    }
+    public void Submit()
+    {
+        if (!string.IsNullOrEmpty(setQuery))
+        {
+            var query = new Dictionary<string, string> { { "query", setQuery }, { "themeddraft", true.ToString() } };
+            navManager.NavigateTo(QueryHelpers.AddQueryString(navManager.BaseUri + "/Draft", query));
+        }
+    }
+}

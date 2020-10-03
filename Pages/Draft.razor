@@ -9,7 +9,8 @@
 @using System.Text
 @using Microsoft.AspNetCore.WebUtilities
 @using Radzen.Blazor
-@using Blazored.LocalStorage;
+@using Blazored.LocalStorage
+@using System.Net.Http.Headers
 @inject HttpClient Http
 @inject NavigationManager navManager
 @inject IJSRuntime JSRuntime
@@ -24,7 +25,7 @@
             transform: scale(1.5);
         }
 </style>
-
+@themesReadable
 <div style="display: @(loading ? "none" : "inline");">
     <table align="center">
         <tr>
@@ -99,8 +100,8 @@
         <div id="Deck" style="display: @(SideBoard ? "none" : "inline");">
             <h3 align="center">Main Deck</h3>
             <div align="center">
-                <button class="btn btn-primary" @onclick="GoToDeck">Main Deck</button>
-                <button class="btn btn-default" @onclick="GoToSideboard">Sideboard</button>
+                <button class="btn btn-primary" @onclick="GoToDeck">Main Deck (@Deck.Count)</button>
+                <button class="btn btn-default" @onclick="GoToSideboard">Sideboard (@SideBoardDeck.Count)</button>
                 <button class="btn btn-primary" @onclick="DownloadFile">Export</button>
             </div>
             <br />
@@ -137,8 +138,8 @@
         <div id="Deck" style="display: @(SideBoard ? "inline" : "none");">
             <h3 align="center">Sideboard</h3>
             <div align="center">
-                <button class="btn btn-default" @onclick="GoToDeck">Main Deck</button>
-                <button class="btn btn-primary" @onclick="GoToSideboard">Sideboard</button>
+                <button class="btn btn-default" @onclick="GoToDeck">Main Deck @Deck.Count</button>
+                <button class="btn btn-primary" @onclick="GoToSideboard">Sideboard @SideBoardDeck.Count</button>
                 <button class="btn btn-primary" @onclick="DownloadFile">Export</button>
             </div>
             <br />
@@ -194,249 +195,319 @@
 TabletopDeck.Create(cards)
 );
     }
-class ColorDataItem
-{
-    public string Color { get; set; }
-    public double Count { get; set; }
-}
-class CMCDataItem
-{
-    public string CMC { get; set; }
-    public double Count { get; set; }
-}
+    class ColorDataItem
+    {
+        public string Color { get; set; }
+        public double Count { get; set; }
+    }
+    class CMCDataItem
+    {
+        public string CMC { get; set; }
+        public double Count { get; set; }
+    }
 
-ColorDataItem[] colordata = new ColorDataItem[] {
+    ColorDataItem[] colordata = new ColorDataItem[] {
     };
-CMCDataItem[] cmcdata = new CMCDataItem[] {
+    CMCDataItem[] cmcdata = new CMCDataItem[] {
     };
-[CascadingParameter(Name = "Pick")]
-bool Pick { get; set; }
-[CascadingParameter(Name = "SideBoard")]
-bool SideBoard { get; set; }
+    [CascadingParameter(Name = "Pick")]
+    bool Pick { get; set; }
+    [CascadingParameter(Name = "SideBoard")]
+    bool SideBoard { get; set; }
+    bool themedraft = false;
+    bool loading = true;
+    string themesReadable = "";
+    public List<string> cardList = new List<string>();
+    public int currentPackCount = 0;
+    public List<List<List<Card>>> allPacks = new List<List<List<Card>>>();
+    public List<Card> CurrentPack = new List<Card>();
+    public string confirmButton = "hidden";
+    public int progress = 0;
+    public static string styleDefault = "width: 10vw;";
+    public static string styleSelected = "width: 10vw;border-width: .5vw;border-style: solid; border-color: SlateBlue;";
+    Dictionary<int, string> buttonStyle = new Dictionary<int, string>();
+    List<int> selectedCards = new List<int>();
+    static List<Card> Deck = new List<Card>();
+    static List<Card> SideBoardDeck = new List<Card>();
+    string setQuery = "";
+    int packSelection = 0;
 
-bool loading = true;
-public List<string> cardList = new List<string>();
-public int currentPackCount = 0;
-public List<List<List<Card>>> allPacks = new List<List<List<Card>>>();
-public List<Card> CurrentPack = new List<Card>();
-public string confirmButton = "hidden";
-public int progress = 0;
-public static string styleDefault = "width: 10vw;";
-public static string styleSelected = "width: 10vw;border-width: .5vw;border-style: solid; border-color: SlateBlue;";
-Dictionary<int, string> buttonStyle = new Dictionary<int, string>();
-List<int> selectedCards = new List<int>();
-static List<Card> Deck = new List<Card>();
-static List<Card> SideBoardDeck = new List<Card>();
-string setQuery = "";
-int packSelection = 0;
-
-protected override async Task OnInitializedAsync()
-{
-    bool asfd = Pick;
-    Pick = true;
-    await Startup();
-    Submit();
-    await Task.CompletedTask;
-}
-Task Startup()
-{
-
-    var uri = navManager.ToAbsoluteUri(navManager.Uri);
-    if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("query", out var param))
+    protected override async Task OnInitializedAsync()
     {
-        setQuery = param.First();
+        bool asfd = Pick;
+        Pick = true;
+        await Startup();
+        Submit();
+        await Task.CompletedTask;
     }
-
-    for (int i = 0; i < 20; i++)
+    class Theme
     {
-        buttonStyle.Add(i, styleDefault);
+        public string name;
+        public List<string> cards;
     }
-    return Task.CompletedTask;
-}
+    Task Startup()
+    {
 
-public void SelectCard(MouseEventArgs e, int cardNumber)
-{
-    if (selectedCards.Contains(cardNumber))
-    {
-        selectedCards.Remove(cardNumber);
-        buttonStyle[cardNumber] = styleDefault;
-    }
-    else if (selectedCards.Count < 2)
-    {
-        selectedCards.Add(cardNumber);
-        buttonStyle[cardNumber] = styleSelected;
-    }
-    if (selectedCards.Count == 2)
-        confirmButton = "visible";
-    else
-        confirmButton = "hidden";
-}
-async void Submit()
-{
-    int page = 1;
-    List<Card> CubeCards = new List<Card>();
-
-    while (true)
-    {
-        string query = "https://api.scryfall.com/cards/search?q=" + HttpUtility.UrlEncode(setQuery) + "&order=edhrec&page=" + page;
+        var uri = navManager.ToAbsoluteUri(navManager.Uri);
+        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("query", out var param))
         {
-            string content = await Http.GetStringAsync(query);
-            JObject jsonResponse = JObject.Parse(content);
-            foreach (JToken card in jsonResponse["data"])
-            {
-                Card newCard = JsonToCard(card);
-                if (newCard != null)
-                    CubeCards.Add(newCard);
-            }
-            progress = (int)((decimal)CubeCards.Count / decimal.Parse(jsonResponse["total_cards"].ToString()) * 100M);
-            StateHasChanged();
-            if (jsonResponse["data"].Count() < 175)
-                break;
-            page++;
+            setQuery = param.First();
         }
-    }
-    for (int i2 = 0; i2 < 3; i2++)
-    {
-        CubeCards.AddRange(CommanderClassic());
-        List<Card> Myth = CubeCards.Where(p => p.rarity == "mythic").ToList();
-        List<Card> rare = CubeCards.Where(p => p.rarity == "rare").ToList();
-        List<Card> uncom = CubeCards.Where(p => p.rarity == "uncommon").ToList();
-        List<Card> common = CubeCards.Where(p => p.rarity == "common").ToList();
-        List<Card> legendaries = CubeCards.Where(p => p.type.Contains("Legendary") && p.type.Contains("Creature")).ToList();
-        //List<Card> partners = AddPartners();
-        //legendaries.AddRange(partners);
-        Random r = new Random();
-        List<List<Card>> Packs = new List<List<Card>>();
-        List<Card> cardsInPacks = new List<Card>();
-        for (int i = 0; i < 8; i++)
+        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("themeddraft", out var param1))
         {
-            List<Card> packCards = new List<Card>();
+            themedraft = bool.Parse(param1.First());
+        }
+        for (int i = 0; i < 20; i++)
+        {
+            buttonStyle.Add(i, styleDefault);
+        }
+        return Task.CompletedTask;
+    }
 
-            //legendaries
-            for (int l = 0; l < 2; l++)
+    public void SelectCard(MouseEventArgs e, int cardNumber)
+    {
+        if (selectedCards.Contains(cardNumber))
+        {
+            selectedCards.Remove(cardNumber);
+            buttonStyle[cardNumber] = styleDefault;
+        }
+        else if (selectedCards.Count < 2)
+        {
+            selectedCards.Add(cardNumber);
+            buttonStyle[cardNumber] = styleSelected;
+        }
+        if (selectedCards.Count == 2)
+            confirmButton = "visible";
+        else
+            confirmButton = "hidden";
+    }
+    async void Submit()
+    {
+        int page = 1;
+        List<Card> CubeCards = new List<Card>();
+
+
+        if (!themedraft)
+        {
+            while (true)
             {
-                bool myth = false;
-                List<Card> availLegendaries = legendaries.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p)).ToList();
-                if (myth)
-                    availLegendaries = availLegendaries.Where(p => p.rarity != "mythic").ToList();
-                Card c = availLegendaries[r.Next(0, availLegendaries.Count())];
-                if (c.rarity == "mythic")
-                    myth = true;
-                packCards.Add(c);
-            }
-            //rare/myth slot
-            for (int l = 0; l < 6; l++)
-            {
-                bool myth = false;
-                bool gotMyth = r.Next(0, 100) > 86;
-                if (!myth && gotMyth)
+                string query = "https://api.scryfall.com/cards/search?q=" + HttpUtility.UrlEncode(setQuery) + "&order=edhrec&page=" + page;
                 {
-                    List<Card> availMyth = Myth.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p)).ToList();
-                    Card c = availMyth[r.Next(0, availMyth.Count())];
-                    myth = true;
-                    packCards.Add(c);
+                    string content = await Http.GetStringAsync(query);
+                    JObject jsonResponse = JObject.Parse(content);
+                    foreach (JToken card in jsonResponse["data"])
+                    {
+                        Card newCard = JsonToCard(card);
+                        if (newCard != null)
+                            CubeCards.Add(newCard);
+                    }
+                    progress = (int)((decimal)CubeCards.Count / decimal.Parse(jsonResponse["total_cards"].ToString()) * 100M);
+                    StateHasChanged();
+                    if (jsonResponse["data"].Count() < 175)
+                        break;
+                    page++;
+                }
+            }
+        }
+        else
+        {
+
+            List<Theme> Themes = new List<Theme>();
+            Themes = JsonConvert.DeserializeObject<List<Theme>>(new Data().ThemesString);
+            Themes.AddRange(JsonConvert.DeserializeObject<List<Theme>>(new Data().ThemesString));
+            List<string> cardnames = new List<string>();
+            List<string> themes = setQuery.Split(',').ToList();
+            themesReadable = string.Join(',', themes.Select(p => p.Replace("/themes/", "").Replace("/tribes/", "")));
+            foreach(string themeName in themes)
+            {
+                Theme t = Themes.First(p => p.name == themeName);
+                cardnames.AddRange(t.cards);
+            }
+            List<Call> calls = new List<Call>();
+            Call c = new Call();
+            c.identifiers = new List<Identifier>();
+            foreach (string cardLine in cardnames.Distinct().ToList())
+            {
+                Identifier i = new Identifier();
+                i.name = cardLine;
+                if (c.identifiers.Count == 75)
+                {
+                    calls.Add(c);
+                    c = new Call();
+                    c.identifiers = new List<Identifier>();
+                    c.identifiers.Add(i);
                 }
                 else
+                    c.identifiers.Add(i);
+            }
+            int callnumber = 0;
+            while (true)
+            {
+                var cli = new HttpClient();
+                string content = "";
+                string jsondata1 = JsonConvert.SerializeObject(calls[callnumber]);
+                callnumber++;
+                var buffer = System.Text.Encoding.UTF8.GetBytes(jsondata1);
+                var byteContent = new ByteArrayContent(buffer);
+                byteContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+                var asdf = await cli.PostAsync("https://api.scryfall.com/cards/collection", byteContent);
+                content = await asdf.Content.ReadAsStringAsync();
+                JObject jsonResponse = JObject.Parse(content);
+                foreach (JToken card in jsonResponse["data"])
                 {
-                    List<Card> availRare = rare.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p)).ToList();
-                    Card c = availRare[r.Next(0, availRare.Count())];
+                    Card newCard = JsonToCard(card);
+                    if (newCard != null)
+                        CubeCards.Add(newCard);
+                }
+                progress = (int)(((decimal)callnumber * 75M / (decimal)cardnames.Distinct().Count()) * 100M);
+                StateHasChanged();
+                if (jsonResponse["data"].Count() < 75)
+                    break;
+                page++;
+            }
+        }
+        for (int i2 = 0; i2 < 3; i2++)
+        {
+            CubeCards.AddRange(CommanderClassic());
+            List<Card> Myth = CubeCards.Where(p => p.rarity == "mythic").ToList();
+            List<Card> rare = CubeCards.Where(p => p.rarity == "rare").ToList();
+            List<Card> uncom = CubeCards.Where(p => p.rarity == "uncommon").ToList();
+            List<Card> common = CubeCards.Where(p => p.rarity == "common").ToList();
+            List<Card> legendaries = CubeCards.Where(p => p.type.Contains("Legendary") && p.type.Contains("Creature")).ToList();
+            //List<Card> partners = AddPartners();
+            //legendaries.AddRange(partners);
+            Random r = new Random();
+            List<List<Card>> Packs = new List<List<Card>>();
+            List<Card> cardsInPacks = new List<Card>();
+            for (int i = 0; i < 8; i++)
+            {
+                List<Card> packCards = new List<Card>();
+
+                //legendaries
+                for (int l = 0; l < 2; l++)
+                {
+                    bool myth = false;
+                    List<Card> availLegendaries = legendaries.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p)).ToList();
+                    if (myth)
+                        availLegendaries = availLegendaries.Where(p => p.rarity != "mythic").ToList();
+                    Card c = availLegendaries[r.Next(0, availLegendaries.Count())];
+                    if (c.rarity == "mythic")
+                        myth = true;
                     packCards.Add(c);
                 }
+                //rare/myth slot
+                for (int l = 0; l < 6; l++)
+                {
+                    bool myth = false;
+                    bool gotMyth = r.Next(0, 100) > 86;
+                    if (!myth && gotMyth)
+                    {
+                        List<Card> availMyth = Myth.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p)).ToList();
+                        Card c = availMyth[r.Next(0, availMyth.Count())];
+                        myth = true;
+                        packCards.Add(c);
+                    }
+                    else
+                    {
+                        List<Card> availRare = rare.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p)).ToList();
+                        Card c = availRare[r.Next(0, availRare.Count())];
+                        packCards.Add(c);
+                    }
+                }
+                //uncommons
+                for (int l = 0; l < 8; l++)
+                {
+                    List<Card> availuncomm = uncom.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p)).ToList();
+                    Card c = availuncomm[r.Next(0, availuncomm.Count())];
+                    packCards.Add(c);
+                }
+                //commons
+                for (int l = 0; l < 4; l++)
+                {
+                    List<Card> availcommon = common.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p)).ToList();
+                    Card c = availcommon[r.Next(0, availcommon.Count())];
+                    packCards.Add(c);
+                }
+                Packs.Add(packCards);
+                cardsInPacks.AddRange(packCards);
+                //progressBar1.Value = 50 + 6 * i;
             }
-            //uncommons
-            for (int l = 0; l < 8; l++)
-            {
-                List<Card> availuncomm = uncom.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p)).ToList();
-                Card c = availuncomm[r.Next(0, availuncomm.Count())];
-                packCards.Add(c);
-            }
-            //commons
-            for (int l = 0; l < 4; l++)
-            {
-                List<Card> availcommon = common.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p)).ToList();
-                Card c = availcommon[r.Next(0, availcommon.Count())];
-                packCards.Add(c);
-            }
-            Packs.Add(packCards);
-            cardsInPacks.AddRange(packCards);
-            //progressBar1.Value = 50 + 6 * i;
+            allPacks.Add(Packs);
         }
-        allPacks.Add(Packs);
+        //LoadPack(allPacks[0][currentPackCount]);
+        CurrentPack = allPacks[0][currentPackCount];
+        loading = false;
+        progress = 100;
+        StateHasChanged();
     }
-    //LoadPack(allPacks[0][currentPackCount]);
-    CurrentPack = allPacks[0][currentPackCount];
-    loading = false;
-    progress = 100;
-    StateHasChanged();
-}
-public void MoveToSideBoard(int i)
-{
-    Card card = Deck[i];
-    Deck.Remove(card);
-    SideBoardDeck.Add(card);
-    UpdateGraphs();
-}
-public void MoveToDeck(int i)
-{
-    Card card = SideBoardDeck[i];
-    SideBoardDeck.Remove(card);
-    Deck.Add(card);
-    UpdateGraphs();
-}
-public void GoToDeck()
-{
-    SideBoard = false;
-}
-public void GoToSideboard()
-{
-    SideBoard = true;
-}
-public void SelectCards()
-{
-    Card pick1 = CurrentPack[selectedCards[0]];
-    Card pick2 = CurrentPack[selectedCards[1]];
-    Deck.Add(pick1);
-    Deck.Add(pick2);
-    CurrentPack.Remove(pick1);
-    CurrentPack.Remove(pick2);
-    confirmButton = "hidden";
-    buttonStyle[selectedCards[0]] = styleDefault;
-    buttonStyle[selectedCards[1]] = styleDefault;
-    selectedCards.Clear();
+    public void MoveToSideBoard(int i)
+    {
+        Card card = Deck[i];
+        Deck.Remove(card);
+        SideBoardDeck.Add(card);
+        UpdateGraphs();
+    }
+    public void MoveToDeck(int i)
+    {
+        Card card = SideBoardDeck[i];
+        SideBoardDeck.Remove(card);
+        Deck.Add(card);
+        UpdateGraphs();
+    }
+    public void GoToDeck()
+    {
+        SideBoard = false;
+    }
+    public void GoToSideboard()
+    {
+        SideBoard = true;
+    }
+    public void SelectCards()
+    {
+        Card pick1 = CurrentPack[selectedCards[0]];
+        Card pick2 = CurrentPack[selectedCards[1]];
+        Deck.Add(pick1);
+        Deck.Add(pick2);
+        CurrentPack.Remove(pick1);
+        CurrentPack.Remove(pick2);
+        confirmButton = "hidden";
+        buttonStyle[selectedCards[0]] = styleDefault;
+        buttonStyle[selectedCards[1]] = styleDefault;
+        selectedCards.Clear();
 
-    //richTextBox1.Text = string.Join("\n", Deck.Select(p => p.Nickname));
-    currentPackCount++;
-    if (currentPackCount == 8)
-        currentPackCount = 0;
-    //code to go through each pack for bot picks
-    for (int i = 0; i < 8; i++)
-    {
-        List<Card> pack = allPacks[packSelection][i];
-        if (pack == CurrentPack)
-            continue;
-        Card botpick1 = pack.OrderBy(p => p.rank).ToList()[0];
-        Card botpick2 = pack.OrderBy(p => p.rank).ToList()[1];
-        pack.Remove(botpick1);
-        pack.Remove(botpick2);
+        //richTextBox1.Text = string.Join("\n", Deck.Select(p => p.Nickname));
+        currentPackCount++;
+        if (currentPackCount == 8)
+            currentPackCount = 0;
+        //code to go through each pack for bot picks
+        for (int i = 0; i < 8; i++)
+        {
+            List<Card> pack = allPacks[packSelection][i];
+            if (pack == CurrentPack)
+                continue;
+            Card botpick1 = pack.OrderBy(p => p.rank).ToList()[0];
+            Card botpick2 = pack.OrderBy(p => p.rank).ToList()[1];
+            pack.Remove(botpick1);
+            pack.Remove(botpick2);
+        }
+        CurrentPack = new List<Card>();
+        StateHasChanged();
+        CurrentPack = allPacks[packSelection][currentPackCount];
+        if (CurrentPack.Count() == 0)
+        {
+            packSelection++;
+            if (packSelection < 3)
+                CurrentPack = allPacks[packSelection][currentPackCount];
+        }
+        UpdateGraphs();
+        StateHasChanged();
     }
-    CurrentPack = new List<Card>();
-    StateHasChanged();
-    CurrentPack = allPacks[packSelection][currentPackCount];
-    if (CurrentPack.Count() == 0)
+    public void UpdateGraphs()
     {
-        packSelection++;
-        if (packSelection < 3)
-            CurrentPack = allPacks[packSelection][currentPackCount];
-    }
-    UpdateGraphs();
-    StateHasChanged();
-}
-public void UpdateGraphs()
-{
-    cardList = Deck.Select(p => p.Nickname).ToList();
-    cardList.Add("");
-    cardList.AddRange(SideBoardDeck.Select(p => p.Nickname).ToList());
-    colordata = new ColorDataItem[] {
+        cardList = Deck.Select(p => p.Nickname).ToList();
+        cardList.Add("");
+        cardList.AddRange(SideBoardDeck.Select(p => p.Nickname).ToList());
+        colordata = new ColorDataItem[] {
         new ColorDataItem
         {
             Color = "W",
@@ -463,7 +534,7 @@ public void UpdateGraphs()
              Count = Deck.Where(p=>p.colors.ContainsKey(Card.CMCColor.G)).Sum(p=>p.colors[Card.CMCColor.G])
         },
     };
-    cmcdata = new CMCDataItem[] {
+        cmcdata = new CMCDataItem[] {
         new CMCDataItem
         {
             CMC = "1",
@@ -500,130 +571,130 @@ public void UpdateGraphs()
             Count = Deck.Where(p=>p.cmc >= 7).Count()
         },
     };
-    StateHasChanged();
-}
-public Card JsonToCard(JToken card)
-{
-    Card setcard = new Card();
-    try
-    {
-        int rank = int.Parse(card["edhrec_rank"].ToString());
-        if (rank > 8000)
-            return null;
-        setcard.rank = rank;
+        StateHasChanged();
     }
-    catch { return null; }
-    string url = "";
-    string lowresurl = "";
-    string name = card["name"].ToString();
-
-    if (name.Contains("/"))
-        name = name.Split('/')[0];
-    if (card["card_faces"] != null && card["image_uris"] == null)
+    public Card JsonToCard(JToken card)
     {
-        for (int i = 0; i < card["card_faces"].Count(); i++)
+        Card setcard = new Card();
+        try
         {
-            var cardInfo = card["card_faces"][i];
-            if (i == 0)
-            {
-                url = cardInfo["image_uris"]["large"].ToString();
-                lowresurl = cardInfo["image_uris"]["normal"].ToString();
-                name = cardInfo["name"].ToString();
-            }
-            else
-            {
-                Card c = new Card()
-                {
-                    Nickname = cardInfo["name"].ToString(),
-                    count = 1,
-                    imgurl = cardInfo["image_uris"]["large"].ToString()
-                };
-            }
+            int rank = int.Parse(card["edhrec_rank"].ToString());
+            if (rank > 8000)
+                return null;
+            setcard.rank = rank;
         }
-    }
-    else
-    {
-        url = card["image_uris"]["large"].ToString();
-        lowresurl = card["image_uris"]["normal"].ToString();
-    }
+        catch { return null; }
+        string url = "";
+        string lowresurl = "";
+        string name = card["name"].ToString();
 
-    string manacost = "0";
-
-    int cmc = 0;
-    JArray colorid = new JArray();
-
-    try
-    {
-        manacost = card["mana_cost"].ToString();
-        cmc = Convert.ToInt32(card["cmc"].ToString());
-        colorid = (JArray)card["color_identity"];
-    }
-    catch { }
-    name = name.ToLower().Trim();
-
-    setcard.type = card["type_line"].ToString();
-    setcard.imgurl = url;
-    setcard.lowresimgurl = lowresurl;
-    setcard.Nickname = name;
-    setcard.cmc = cmc;
-    setcard.rarity = card["rarity"].ToString();
-    setcard.Name = "Card";
-    setcard.count = 1;
-    foreach (Card.CMCColor c in Enum.GetValues(typeof(Card.CMCColor)))
-    {
-        setcard.imgurl = url;
-        setcard.lowresimgurl = lowresurl;
-        setcard.cmc = cmc;
-
-        if (setcard.colors.ContainsKey(c))
-            continue;
-        if (cmc > 0)
+        if (name.Contains("/"))
+            name = name.Split('/')[0];
+        if (card["card_faces"] != null && card["image_uris"] == null)
         {
-            //not a land
-            int count = manacost.Count(p => p == c.ToString()[0]);
-            if (count > 0)
-                setcard.colors.Add(c, count);
+            for (int i = 0; i < card["card_faces"].Count(); i++)
+            {
+                var cardInfo = card["card_faces"][i];
+                if (i == 0)
+                {
+                    url = cardInfo["image_uris"]["large"].ToString();
+                    lowresurl = cardInfo["image_uris"]["normal"].ToString();
+                    name = cardInfo["name"].ToString();
+                }
+                else
+                {
+                    Card c = new Card()
+                    {
+                        Nickname = cardInfo["name"].ToString(),
+                        count = 1,
+                        imgurl = cardInfo["image_uris"]["large"].ToString()
+                    };
+                }
+            }
         }
         else
         {
-            //is a land. get its colors!
-            if (colorid.Any(p => p.ToString() == c.ToString()))
+            url = card["image_uris"]["large"].ToString();
+            lowresurl = card["image_uris"]["normal"].ToString();
+        }
+
+        string manacost = "0";
+
+        int cmc = 0;
+        JArray colorid = new JArray();
+
+        try
+        {
+            manacost = card["mana_cost"].ToString();
+            cmc = Convert.ToInt32(card["cmc"].ToString());
+            colorid = (JArray)card["color_identity"];
+        }
+        catch { }
+        name = name.ToLower().Trim();
+
+        setcard.type = card["type_line"].ToString();
+        setcard.imgurl = url;
+        setcard.lowresimgurl = lowresurl;
+        setcard.Nickname = name;
+        setcard.cmc = cmc;
+        setcard.rarity = card["rarity"].ToString();
+        setcard.Name = "Card";
+        setcard.count = 1;
+        foreach (Card.CMCColor c in Enum.GetValues(typeof(Card.CMCColor)))
+        {
+            setcard.imgurl = url;
+            setcard.lowresimgurl = lowresurl;
+            setcard.cmc = cmc;
+
+            if (setcard.colors.ContainsKey(c))
+                continue;
+            if (cmc > 0)
             {
-                setcard.colors.Add(c, 0);
+                //not a land
+                int count = manacost.Count(p => p == c.ToString()[0]);
+                if (count > 0)
+                    setcard.colors.Add(c, count);
+            }
+            else
+            {
+                //is a land. get its colors!
+                if (colorid.Any(p => p.ToString() == c.ToString()))
+                {
+                    setcard.colors.Add(c, 0);
+                }
             }
         }
+        return setcard;
     }
-    return setcard;
-}
-public List<Card> CommanderClassic()
-{
-    string cc = new Data().CommanderStaples;
-
-    List<Card> CCCards = new List<Card>();
-
-    JObject jsonResponse = JObject.Parse(cc);
-
-    foreach (var card in jsonResponse["data"])
+    public List<Card> CommanderClassic()
     {
-        Card card2 = JsonToCard(card);
-        if (card2.rarity == "mythic" || card2.rarity == "rare")
-            card2.rarity = "uncommon";
-        CCCards.Add(card2);
+        string cc = new Data().CommanderStaples;
+
+        List<Card> CCCards = new List<Card>();
+
+        JObject jsonResponse = JObject.Parse(cc);
+
+        foreach (var card in jsonResponse["data"])
+        {
+            Card card2 = JsonToCard(card);
+            if (card2.rarity == "mythic" || card2.rarity == "rare")
+                card2.rarity = "uncommon";
+            CCCards.Add(card2);
+        }
+        return CCCards;
     }
-    return CCCards;
-}
-public List<Card> AddPartners()
-{
-    List<Card> partners = new List<Card>();
-    string partnersjsonstring = new Data().Partners;
-    JObject partnersjo = JObject.Parse(partnersjsonstring);
-    foreach (var card in partnersjo["data"])
+    public List<Card> AddPartners()
     {
-        Card newCard = JsonToCard(card);
-        if (newCard != null)
-            partners.Add(newCard);
+        List<Card> partners = new List<Card>();
+        string partnersjsonstring = new Data().Partners;
+        JObject partnersjo = JObject.Parse(partnersjsonstring);
+        foreach (var card in partnersjo["data"])
+        {
+            Card newCard = JsonToCard(card);
+            if (newCard != null)
+                partners.Add(newCard);
+        }
+        return partners;
     }
-    return partners;
-}
 
 }
