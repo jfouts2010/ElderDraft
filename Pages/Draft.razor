@@ -61,44 +61,58 @@
         <br />
         <table align="center">
             <tr>
+                <td colspan="5" style="text-align:center;">
+                    Sort by
+                    <select id="sortorder" @onchange="@(e => ChangeSortOrder(e))">
+                        <option value="@SortTypes.Popularity">Popularity</option>
+                        <option value="@SortTypes.Rarity">Rarity</option>
+                        <option value="@SortTypes.Price">$ Price</option>
+                        <option value="@SortTypes.CMC">CMC</option>
+                    </select>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="5" style="text-align:center">
+                    Order Legal Colors
+                </td>
+            </tr>
+
+            <tr>
                 <th valign="top">
                     <table>
                         <tr>
-                            @for (int i = 0; i < 5; i++)
-                            {
-                                var buttonNumber = i;
-                                <th>
-                                    <img src=@(CurrentPack.Count > i ? CurrentPack[i].lowresimgurl : "") @onclick="@(e => SelectCard(e, buttonNumber))" style="@buttonStyle[i]">
-                                </th>
-                            }
+                            <td>
+                                <label for="White">White <input type="checkbox" value="White" id="White" name="White" @onchange="@(e => ChangeSortColor(e,  Card.CMCColor.W))" /></label>
+                            </td>
+                            <td>
+                                <label for="Blue">Blue <input type="checkbox" value="Blue" id="Blue" name="Blue" @onchange="@(e => ChangeSortColor(e, Card.CMCColor.U))" /></label>
+                            </td>
+                            <td>
+                                <label for="Black">Black <input type="checkbox" value="Black" id="Black" name="Black" @onchange="@(e => ChangeSortColor(e,  Card.CMCColor.B))" /></label>
+                            </td>
+                            <td>
+                                <label for="Green">Green <input type="checkbox" value="Green" id="Green" name="Green" @onchange="@(e => ChangeSortColor(e,  Card.CMCColor.G))" /></label>
+                            </td>
+                            <td>
+                                <label for="Red">Red <input type="checkbox" value="Red" id="Red" name="Red" @onchange="@(e => ChangeSortColor(e,  Card.CMCColor.R))" /></label>
+                            </td>
                         </tr>
-                        <tr>
-                            @for (int i = 5; i < 10; i++)
-                            {
-                                var buttonNumber = i;
-                                <th>
-                                    <img src=@(CurrentPack.Count > i ? CurrentPack[i].lowresimgurl : "") @onclick="@(e => SelectCard(e, buttonNumber))" style="@buttonStyle[i]">
-                                </th>
-                            }
-                        </tr>
-                        <tr>
-                            @for (int i = 10; i < 15; i++)
-                            {
-                                var buttonNumber = i;
-                                <th>
-                                    <img src=@(CurrentPack.Count > i ? CurrentPack[i].lowresimgurl : "") @onclick="@(e => SelectCard(e, buttonNumber))" style="@buttonStyle[i]">
-                                </th>
-                            }
-                        </tr>
-                        <tr>
-                            @for (int i = 15; i < 20; i++)
-                            {
-                                var buttonNumber = i;
-                                <th>
-                                    <img src=@(CurrentPack.Count > i ? CurrentPack[i].lowresimgurl : "") @onclick="@(e => SelectCard(e, buttonNumber))" style="@buttonStyle[i]">
-                                </th>
-                            }
-                        </tr>
+                        @for (int i = 0; i < CurrentPack.Count; i++)
+                        {
+                            <tr>
+                                @for (; i < CurrentPack.Count; i++)
+                                {
+                                    var buttonNumber = i;
+                                    <th>
+                                        <img src=@(CurrentPack.Count > i ? CurrentPack[i].lowresimgurl : "") @onclick="@(e => SelectCard(e, buttonNumber))" style="@buttonStyle[i]">
+                                    </th>
+                                    @if ((i + 1) % 5 == 0)
+                                    {
+                                        break;
+                                    }
+                                }
+                            </tr>
+                        }
                     </table>
                 </th>
             </tr>
@@ -197,11 +211,7 @@
         List<List<Card>> cards = new List<List<Card>>();
         cards.Add(Deck);
         cards.Add(SideBoardDeck);
-        await JSRuntime.InvokeAsync<object>(
-"FileSaveAs",
-"Deck - " + DateTime.Now.ToShortDateString().Replace('/', '-') + ".json",
-TabletopDeck.Create(cards)
-);
+        await JSRuntime.InvokeAsync<object>("FileSaveAs","Deck - " + DateTime.Now.ToShortDateString().Replace('/', '-') + ".json",TabletopDeck.Create(cards));
     }
     class ColorDataItem
     {
@@ -242,6 +252,16 @@ TabletopDeck.Create(cards)
     public static string styleSelected = "width: 10vw;border-width: .5vw;border-style: solid; border-color: SlateBlue;";
     Dictionary<int, string> buttonStyle = new Dictionary<int, string>();
     List<int> selectedCards = new List<int>();
+    List<Card.CMCColor> orderColors = new List<Card.CMCColor>();
+    public SortTypes currentSort = SortTypes.Popularity;
+    public bool sortreverse = false;
+    public enum SortTypes
+    {
+        Popularity = 1,
+        Price = 2,
+        Rarity = 3,
+        CMC = 4,
+    }
     static List<Card> Deck = new List<Card>();
     static List<Card> SideBoardDeck = new List<Card>();
     string setQuery = "";
@@ -296,6 +316,90 @@ TabletopDeck.Create(cards)
         else
             confirmButton = "hidden";
     }
+
+    public void ChangeSortColor(ChangeEventArgs e, Card.CMCColor color)
+    {
+        if (orderColors.Contains(color))
+            orderColors.Remove(color);
+        else
+            orderColors.Add(color);
+        UpdateCurrentPackOrder();
+    }
+
+    public void ChangeSortOrder(ChangeEventArgs e)
+    {
+        SortTypes newsort = (SortTypes)Enum.Parse(typeof(SortTypes), e.Value.ToString());
+        if (newsort == currentSort)
+            sortreverse = !sortreverse;
+        else
+            sortreverse = false;
+        currentSort = newsort;
+        UpdateCurrentPackOrder();
+    }
+
+    public void UpdateCurrentPackOrder()
+    {
+        //do secondary sort... first? Logical.
+        if(sortreverse)
+        {
+            switch (currentSort)
+            {
+                case SortTypes.Popularity:
+                    {
+                        CurrentPack = CurrentPack.OrderByDescending(p => p.rank).ToList();
+                        break;
+                    }
+                case SortTypes.Price:
+                    {
+                        //CurrentPack = CurrentPack.OrderBy(p => p.price).ToList();
+                        break;
+                    }
+                case SortTypes.CMC:
+                    {
+                        CurrentPack = CurrentPack.OrderByDescending(p => p.cmc).ToList();
+                        break;
+                    }
+                case SortTypes.Rarity:
+                    {
+                        CurrentPack = CurrentPack.OrderByDescending(p => p.rarity).ToList();
+                        break;
+                    }
+            }
+        }
+        else
+        {
+            switch (currentSort)
+            {
+                case SortTypes.Popularity:
+                    {
+                        CurrentPack = CurrentPack.OrderBy(p => p.rank).ToList();
+                        break;
+                    }
+                case SortTypes.Price:
+                    {
+                        //CurrentPack = CurrentPack.OrderBy(p => p.price).ToList();
+                        break;
+                    }
+                case SortTypes.CMC:
+                    {
+                        CurrentPack = CurrentPack.OrderBy(p => p.cmc).ToList();
+                        break;
+                    }
+                case SortTypes.Rarity:
+                    {
+                        CurrentPack = CurrentPack.OrderBy(p => p.rarity).ToList();
+                        break;
+                    }
+            }
+        }
+
+        if (orderColors.Count > 0)
+        {
+            CurrentPack = CurrentPack.OrderByDescending(p => p.colors.Keys.ToList().All(x => orderColors.Contains(x))).ToList();
+        }
+        StateHasChanged();
+    }
+
     async void Submit()
     {
         int page = 1;
@@ -494,6 +598,7 @@ TabletopDeck.Create(cards)
     {
         SideBoard = true;
     }
+
     public void SelectCards()
     {
         Card pick1 = CurrentPack[selectedCards[0]];
@@ -532,6 +637,7 @@ TabletopDeck.Create(cards)
                 CurrentPack = allPacks[packSelection][currentPackCount];
         }
         UpdateGraphs();
+        UpdateCurrentPackOrder();
         StateHasChanged();
     }
     public void UpdateGraphs()
