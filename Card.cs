@@ -43,6 +43,17 @@ public class Card
     public int rank { get; set; }
     public int CardID { get; set; }
     public string rarity { get; set; }
+    public decimal price { get; set; }
+    public Rarity rarity_enum { get; set; }
+
+    public enum Rarity
+    {
+        common=1,
+        uncommon=2,
+        rare=3,
+        mythic=4,
+    }
+
     public string type { get; set; }
     public string BackURL { get; set; }
     public enum CMCColor

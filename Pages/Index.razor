@@ -21,7 +21,8 @@
     @for (int i = 0; i < Sets.Count; i++)
     {
         var buttonNumber = i;
-        <input type="checkbox" id="" name="" value="" @onclick="@(e => SelectSet(buttonNumber))"> @Sets[i]<br />
+        
+        <input type="checkbox" id="@i" name="" value="" @onclick="@(e => SelectSet(buttonNumber))"> <label for="@i"> @Sets[i] </label><br />
     }
 </div>
 @code {

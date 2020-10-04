@@ -248,8 +248,8 @@
     public List<Card> CurrentPack = new List<Card>();
     public string confirmButton = "hidden";
     public int progress = 0;
-    public static string styleDefault = "width: 10vw;";
-    public static string styleSelected = "width: 10vw;border-width: .5vw;border-style: solid; border-color: SlateBlue;";
+    public static string styleDefault = "width: 225px;";
+    public static string styleSelected = "width: 225px;border-width: .5vw;border-style: solid; border-color: SlateBlue;";
     Dictionary<int, string> buttonStyle = new Dictionary<int, string>();
     List<int> selectedCards = new List<int>();
     List<Card.CMCColor> orderColors = new List<Card.CMCColor>();
@@ -351,7 +351,7 @@
                     }
                 case SortTypes.Price:
                     {
-                        //CurrentPack = CurrentPack.OrderBy(p => p.price).ToList();
+                        CurrentPack = CurrentPack.OrderBy(p => p.price).ToList();
                         break;
                     }
                 case SortTypes.CMC:
@@ -361,7 +361,7 @@
                     }
                 case SortTypes.Rarity:
                     {
-                        CurrentPack = CurrentPack.OrderByDescending(p => p.rarity).ToList();
+                        CurrentPack = CurrentPack.OrderBy(p => (int)p.rarity_enum).ToList();
                         break;
                     }
             }
@@ -377,7 +377,7 @@
                     }
                 case SortTypes.Price:
                     {
-                        //CurrentPack = CurrentPack.OrderBy(p => p.price).ToList();
+                        CurrentPack = CurrentPack.OrderByDescending(p => p.price).ToList();
                         break;
                     }
                 case SortTypes.CMC:
@@ -387,7 +387,7 @@
                     }
                 case SortTypes.Rarity:
                     {
-                        CurrentPack = CurrentPack.OrderBy(p => p.rarity).ToList();
+                        CurrentPack = CurrentPack.OrderByDescending(p => (int)p.rarity_enum).ToList();
                         break;
                     }
             }
@@ -412,18 +412,26 @@
             {
                 string query = "https://api.scryfall.com/cards/search?q=" + HttpUtility.UrlEncode(setQuery) + "&order=edhrec&page=" + page;
                 {
-                    string content = await Http.GetStringAsync(query);
-                    JObject jsonResponse = JObject.Parse(content);
-                    foreach (JToken card in jsonResponse["data"])
+                    try
                     {
-                        Card newCard = JsonToCard(card);
-                        if (newCard != null)
-                            CubeCards.Add(newCard);
+                        string content = await Http.GetStringAsync(query);
+                        JObject jsonResponse = JObject.Parse(content);
+                        foreach (JToken card in jsonResponse["data"])
+                        {
+                            Card newCard = JsonToCard(card);
+                            if (newCard != null)
+                                CubeCards.Add(newCard);
+                        }
+                        progress = (int)((decimal)CubeCards.Count / decimal.Parse(jsonResponse["total_cards"].ToString()) * 100M);
+                        StateHasChanged();
+                        if (jsonResponse["data"].Count() < 175)
+                            break;
                     }
-                    progress = (int)((decimal)CubeCards.Count / decimal.Parse(jsonResponse["total_cards"].ToString()) * 100M);
-                    StateHasChanged();
-                    if (jsonResponse["data"].Count() < 175)
-                        break;
+                    catch(Exception e)
+                    {
+                        await JSRuntime.InvokeAsync<object>("Alert", e.Message);
+                    }
+
                     page++;
                 }
             }
@@ -808,6 +816,15 @@
         setcard.Nickname = name;
         setcard.cmc = cmc;
         setcard.rarity = card["rarity"].ToString();
+        try
+        {
+            setcard.price = Convert.ToDecimal(card["prices"]["usd"]);
+        }
+        catch
+        {
+            setcard.price = .05m;
+        }
+        setcard.rarity_enum = (Card.Rarity) Enum.Parse(typeof(Card.Rarity), setcard.rarity);
         setcard.Name = "Card";
         setcard.count = 1;
         foreach (Card.CMCColor c in Enum.GetValues(typeof(Card.CMCColor)))
