@@ -1,86 +1,20 @@
 ﻿@page "/"
-
-@using Newtonsoft.Json
-@using Newtonsoft.Json.Linq
-@using System.Globalization
-@using System.Net
-@using System.Web
-@using System.Threading.Tasks
-@using System.IO
-@using System.Text
-@using Microsoft.AspNetCore.WebUtilities
 @inject NavigationManager navManager
-<input type="text" id="setsInput" name="setsInput" @bind="@setQuery">
-<button class="btn btn-primary" @onclick="GenerateQuery">Generate Query</button>
-<br>
-<br>
-<button class="btn btn-primary" @onclick="Submit">Submit</button>
-<br />
-<br />
-<div>
-    @for (int i = 0; i < Sets.Count; i++)
-    {
-        var buttonNumber = i;
-        
-        <input type="checkbox" id="@i" name="" value="" @onclick="@(e => SelectSet(buttonNumber))"> <label for="@i"> @Sets[i] </label><br />
-    }
-</div>
-@code {
-    [CascadingParameter(Name = "Pick")]
-    bool Pick { get; set; }
-    [CascadingParameter(Name = "SideBoard")]
-    bool SideBoard { get; set; }
-    int count = 0;
-    string setQuery = "";
-    List<int> selectedSets = new List<int>();
-    List<string> Sets = new List<string>();
-    protected override async Task OnInitializedAsync()
-    {
-     
-        Sets = GetSets();
-        await Task.CompletedTask;
-    }
-    public void SelectSet(int count)
-    {
-        if (selectedSets.Contains(count))
-            selectedSets.Remove(count);
-        else
-            selectedSets.Add(count);
-    }
-    public void GenerateQuery()
-    {
-        List<string> setstrings = new List<string>();
-        foreach(int set in selectedSets)
-        {
-            string selectedset = GetSets()[set];
-            var options = selectedset.Split(new string[] { ":" }, StringSplitOptions.None);
-            string acronym = options[0];
-            setstrings.Add("set:" + acronym);
-        }
-        setQuery = "-type:basic (" + string.Join(" OR ", setstrings) +  ")";
-        StateHasChanged();
-    }
-    public List<string> GetSets()
-    {
-        string setsjsonstring = new Data().Sets;
 
-        JObject setsjo = JObject.Parse(setsjsonstring);
-        Dictionary<string, DateTime> setsRelease = new Dictionary<string, DateTime>();
-        foreach (var set in setsjo["data"])
+    <div style="text-align: center;">
+        <button class="btn btn-primary" @onclick="Set">Set Draft</button>
+        <br />
+        <br />
+        <button class="btn btn-primary" @onclick="Theme">Theme Draft</button>
+    </div>
+    @code
+{
+        public void Set()
         {
-            string set_type = set["set_type"].ToString();
-            if (set_type == "core" || set_type == "expansion" || set_type == "commander" || set_type == "masters")
-                setsRelease.Add(set["code"].ToString() + ": " + set["name"].ToString(), DateTime.ParseExact(set["released_at"].ToString(), "yyyy-MM-dd", CultureInfo.InvariantCulture));
+            navManager.NavigateTo(navManager.BaseUri + "/Set");
         }
-        return setsRelease.OrderBy(p => p.Value).Select(p => p.Key).ToList();
-    }
-    public void Submit()
-    {
-        if(string.IsNullOrEmpty(setQuery))
+        public void Theme()
         {
-            GenerateQuery();
+            navManager.NavigateTo(navManager.BaseUri + "/ThemeTribal");
         }
-        var query = new Dictionary<string, string> { { "query", setQuery }, { "themeddraft", false.ToString() } };
-        navManager.NavigateTo(QueryHelpers.AddQueryString(navManager.BaseUri + "/Draft", query));
     }
-}
