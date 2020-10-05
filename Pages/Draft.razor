@@ -124,6 +124,7 @@
             <div align="center">
                 <button class="btn btn-primary" @onclick="GoToDeck">Main Deck (@Deck.Count)</button>
                 <button class="btn btn-default" @onclick="GoToSideboard">Sideboard (@SideBoardDeck.Count)</button>
+                <input id="fixlands" type="checkbox" @onclick="SwapFixLands" /><label for="fixlands">Fix Lands</label>
                 <button class="btn btn-primary" @onclick="DownloadFile">Export</button>
             </div>
             <br />
@@ -211,7 +212,7 @@
         List<List<Card>> cards = new List<List<Card>>();
         cards.Add(Deck);
         cards.Add(SideBoardDeck);
-        await JSRuntime.InvokeAsync<object>("FileSaveAs","Deck - " + DateTime.Now.ToShortDateString().Replace('/', '-') + ".json",TabletopDeck.Create(cards));
+        await JSRuntime.InvokeAsync<object>("FileSaveAs","Deck - " + DateTime.Now.ToShortDateString().Replace('/', '-') + ".json",TabletopDeck.Create(cards, fixlands));
     }
     class ColorDataItem
     {
@@ -252,6 +253,7 @@
     public static string styleSelected = "width: 225px;border-width: .5vw;border-style: solid; border-color: SlateBlue;";
     Dictionary<int, string> buttonStyle = new Dictionary<int, string>();
     List<int> selectedCards = new List<int>();
+    bool fixlands = false;
     List<Card.CMCColor> orderColors = new List<Card.CMCColor>();
     public SortTypes currentSort = SortTypes.Popularity;
     public bool sortreverse = false;
@@ -605,6 +607,11 @@
     public void GoToSideboard()
     {
         SideBoard = true;
+    }
+
+    public void SwapFixLands()
+    {
+        fixlands = !fixlands;
     }
 
     public void SelectCards()
