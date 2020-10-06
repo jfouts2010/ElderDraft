@@ -131,6 +131,31 @@
             <br />
             <table align="center">
                 <tr>
+                    <td colspan="5" style="text-align:center;">
+                        Sort by
+                        <select id="sortorder" @onchange="@(e => ChangeSortOrder(e))">
+                            <option value="@SortTypes.Popularity">Popularity</option>
+                            <option value="@SortTypes.Rarity">Rarity</option>
+                            <option value="@SortTypes.Price">$ Price</option>
+                            <option value="@SortTypes.CMC">CMC</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <label for="White">White <input type="checkbox" value="White" id="White" name="White" @onchange="@(e => ChangeSortColor(e,  Card.CMCColor.W))" /></label>
+                        <label for="Blue">Blue <input type="checkbox" value="Blue" id="Blue" name="Blue" @onchange="@(e => ChangeSortColor(e, Card.CMCColor.U))" /></label>
+                    </td>
+                    <td>
+                       
+                    </td>
+                    <td>
+                        <label for="Black">Black <input type="checkbox" value="Black" id="Black" name="Black" @onchange="@(e => ChangeSortColor(e,  Card.CMCColor.B))" /></label>
+                        <label for="Green">Green <input type="checkbox" value="Green" id="Green" name="Green" @onchange="@(e => ChangeSortColor(e,  Card.CMCColor.G))" /></label>
+                        <label for="Red">Red <input type="checkbox" value="Red" id="Red" name="Red" @onchange="@(e => ChangeSortColor(e,  Card.CMCColor.R))" /></label>
+                    </td>
+                </tr>
+                <tr>
                     <th valign="top">
                         <textarea style="height: 500px;width: 20vw;overflow: auto;">
                         @foreach (string card in cardList)
@@ -349,21 +374,29 @@
                 case SortTypes.Popularity:
                     {
                         CurrentPack = CurrentPack.OrderByDescending(p => p.rank).ToList();
+                        Deck = Deck.OrderByDescending(p => p.rank).ToList();
+                        SideBoardDeck = SideBoardDeck.OrderByDescending(p => p.rank).ToList();
                         break;
                     }
                 case SortTypes.Price:
                     {
                         CurrentPack = CurrentPack.OrderBy(p => p.price).ToList();
+                        Deck = Deck.OrderBy(p => p.price).ToList();
+                        SideBoardDeck = SideBoardDeck.OrderBy(p => p.price).ToList();
                         break;
                     }
                 case SortTypes.CMC:
                     {
                         CurrentPack = CurrentPack.OrderByDescending(p => p.cmc).ToList();
+                        Deck = Deck.OrderByDescending(p => p.cmc).ToList();
+                        SideBoardDeck = SideBoardDeck.OrderByDescending(p => p.cmc).ToList();
                         break;
                     }
                 case SortTypes.Rarity:
                     {
                         CurrentPack = CurrentPack.OrderBy(p => (int)p.rarity_enum).ToList();
+                        Deck = Deck.OrderBy(p => (int)p.rarity_enum).ToList();
+                        SideBoardDeck = SideBoardDeck.OrderBy(p => (int)p.rarity_enum).ToList();
                         break;
                     }
             }
@@ -375,21 +408,30 @@
                 case SortTypes.Popularity:
                     {
                         CurrentPack = CurrentPack.OrderBy(p => p.rank).ToList();
+                        Deck = Deck.OrderBy(p => p.rank).ToList();
+                        SideBoardDeck = SideBoardDeck.OrderBy(p => p.rank).ToList();
                         break;
                     }
                 case SortTypes.Price:
                     {
                         CurrentPack = CurrentPack.OrderByDescending(p => p.price).ToList();
+                        Deck = Deck.OrderByDescending(p => p.price).ToList();
+                        SideBoardDeck = SideBoardDeck.OrderByDescending(p => p.price).ToList();
                         break;
                     }
                 case SortTypes.CMC:
                     {
                         CurrentPack = CurrentPack.OrderBy(p => p.cmc).ToList();
+                        Deck = Deck.OrderBy(p => p.cmc).ToList();
+                        SideBoardDeck = SideBoardDeck.OrderBy(p => p.cmc).ToList();
+
                         break;
                     }
                 case SortTypes.Rarity:
                     {
                         CurrentPack = CurrentPack.OrderByDescending(p => (int)p.rarity_enum).ToList();
+                        Deck = Deck.OrderByDescending(p => (int)p.rarity_enum).ToList();
+                        SideBoardDeck = SideBoardDeck.OrderByDescending(p => (int)p.rarity_enum).ToList();
                         break;
                     }
             }
@@ -398,6 +440,8 @@
         if (orderColors.Count > 0)
         {
             CurrentPack = CurrentPack.OrderByDescending(p => p.colors.Keys.ToList().All(x => orderColors.Contains(x))).ToList();
+            Deck = Deck.OrderByDescending(p => p.colors.Keys.ToList().All(x => orderColors.Contains(x))).ToList();
+            SideBoardDeck = SideBoardDeck.OrderByDescending(p => p.colors.Keys.ToList().All(x => orderColors.Contains(x))).ToList();
         }
         StateHasChanged();
     }
