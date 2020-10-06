@@ -211,7 +211,7 @@
         List<List<Card>> cards = new List<List<Card>>();
         cards.Add(Deck);
         cards.Add(SideBoardDeck);
-        await JSRuntime.InvokeAsync<object>("FileSaveAs","Deck - " + DateTime.Now.ToShortDateString().Replace('/', '-') + ".json",TabletopDeck.Create(cards));
+        await JSRuntime.InvokeAsync<object>("FileSaveAs", "Deck - " + DateTime.Now.ToShortDateString().Replace('/', '-') + ".json", TabletopDeck.Create(cards));
     }
     class ColorDataItem
     {
@@ -340,7 +340,7 @@
     public void UpdateCurrentPackOrder()
     {
         //do secondary sort... first? Logical.
-        if(sortreverse)
+        if (sortreverse)
         {
             switch (currentSort)
             {
@@ -427,7 +427,7 @@
                         if (jsonResponse["data"].Count() < 175)
                             break;
                     }
-                    catch(Exception e)
+                    catch (Exception e)
                     {
                         await JSRuntime.InvokeAsync<object>("Alert", e.Message);
                     }
@@ -491,9 +491,10 @@
                 page++;
             }
         }
+        CubeCards.AddRange(CommanderClassic());
+        CubeCards = CubeCards.Distinct().ToList();
         for (int i2 = 0; i2 < 3; i2++)
         {
-            CubeCards.AddRange(CommanderClassic());
             List<Card> Myth = CubeCards.Where(p => p.rarity == "mythic").ToList();
             List<Card> rare = CubeCards.Where(p => p.rarity == "rare").ToList();
             List<Card> uncom = CubeCards.Where(p => p.rarity == "uncommon").ToList();
@@ -824,7 +825,7 @@
         {
             setcard.price = .05m;
         }
-        setcard.rarity_enum = (Card.Rarity) Enum.Parse(typeof(Card.Rarity), setcard.rarity);
+        setcard.rarity_enum = (Card.Rarity)Enum.Parse(typeof(Card.Rarity), setcard.rarity);
         setcard.Name = "Card";
         setcard.count = 1;
         foreach (Card.CMCColor c in Enum.GetValues(typeof(Card.CMCColor)))
