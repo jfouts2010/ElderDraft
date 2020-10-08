@@ -229,13 +229,13 @@
     </div>
 </div>
 @code {
-    public async void DownloadFile()
-    {
-        List<List<Card>> cards = new List<List<Card>>();
-        cards.Add(Deck);
-        cards.Add(SideBoardDeck);
-        await JSRuntime.InvokeAsync<object>("FileSaveAs","Deck - " + DateTime.Now.ToShortDateString().Replace('/', '-') + ".json",TabletopDeck.Create(cards, fixlands));
-    }
+        public async void DownloadFile()
+        {
+            List<List<Card>> cards = new List<List<Card>>();
+            cards.Add(Deck);
+            cards.Add(SideBoardDeck);
+            await JSRuntime.InvokeAsync<object>("FileSaveAs", "Deck - " + DateTime.Now.ToShortDateString().Replace('/', '-') + ".json", TabletopDeck.Create(cards, fixlands));
+        }
     class ColorDataItem
     {
         public string Color { get; set; }
@@ -279,6 +279,9 @@
     List<Card.CMCColor> orderColors = new List<Card.CMCColor>();
     public SortTypes currentSort = SortTypes.Popularity;
     public bool sortreverse = false;
+    public bool debug = true;
+    List<Card> BotCommanders = new List<Card>() { null, null, null, null, null, null, null };
+    List<List<Card>> BotCards = new List<List<Card>>() { new List<Card>(), new List<Card>(), new List<Card>(), new List<Card>(), new List<Card>(), new List<Card>(), new List<Card>() };
     public enum SortTypes
     {
         Popularity = 1,
@@ -364,7 +367,7 @@
     public void UpdateCurrentPackOrder()
     {
         //do secondary sort... first? Logical.
-        if(sortreverse)
+        if (sortreverse)
         {
             switch (currentSort)
             {
@@ -470,7 +473,7 @@
                         if (jsonResponse["data"].Count() < 175)
                             break;
                     }
-                    catch(Exception e)
+                    catch (Exception e)
                     {
                         await JSRuntime.InvokeAsync<object>("Alert", e.Message);
                     }
@@ -534,9 +537,10 @@
                 page++;
             }
         }
+        //CubeCards.AddRange(CommanderClassic());
+        CubeCards = RemoveBannedCards(CubeCards);
         for (int i2 = 0; i2 < 3; i2++)
         {
-            CubeCards.AddRange(CommanderClassic());
             List<Card> Myth = CubeCards.Where(p => p.rarity == "mythic").ToList();
             List<Card> rare = CubeCards.Where(p => p.rarity == "rare").ToList();
             List<Card> uncom = CubeCards.Where(p => p.rarity == "uncommon").ToList();
@@ -627,6 +631,11 @@
         StateHasChanged();
 
     }
+    public List<Card> RemoveBannedCards(List<Card> cubeCards)
+    {
+        cubeCards.Remove(cubeCards.FirstOrDefault(p => p.Nickname == "Urza, Lord High Artificer"));
+        return cubeCards;
+    }
     public void MoveToSideBoard(int i)
     {
         Card card = Deck[i];
@@ -661,28 +670,45 @@
         Card pick2 = CurrentPack[selectedCards[1]];
         Deck.Add(pick1);
         Deck.Add(pick2);
-        CurrentPack.Remove(pick1);
-        CurrentPack.Remove(pick2);
+        allPacks[packSelection][currentPackCount].Remove(pick1);
+        allPacks[packSelection][currentPackCount].Remove(pick2);
         confirmButton = "hidden";
         buttonStyle[selectedCards[0]] = styleDefault;
         buttonStyle[selectedCards[1]] = styleDefault;
         selectedCards.Clear();
 
         //richTextBox1.Text = string.Join("\n", Deck.Select(p => p.Nickname));
-        currentPackCount++;
-        if (currentPackCount == 8)
-            currentPackCount = 0;
+
         //code to go through each pack for bot picks
+        int botNumber = 0;
         for (int i = 0; i < 8; i++)
         {
             List<Card> pack = allPacks[packSelection][i];
-            if (pack == CurrentPack)
+            if (pack == allPacks[packSelection][currentPackCount])
                 continue;
-            Card botpick1 = pack.OrderBy(p => p.rank).ToList()[0];
+            /*Card botpick1 = pack.OrderBy(p => p.rank).ToList()[0];
             Card botpick2 = pack.OrderBy(p => p.rank).ToList()[1];
             pack.Remove(botpick1);
-            pack.Remove(botpick2);
+            pack.Remove(botpick2);*/
+            if (debug)
+            {
+                if (BotCommanders[botNumber] != null)
+                    Console.WriteLine("Bot: Commander:" + BotCommanders[botNumber].Nickname + " Colors:" + string.Join(",", BotCommanders[botNumber].colorIdentity.Where(p => p.Value).Select(p => p.Key)));
+                else
+                    Console.WriteLine("Bot: No Commander Yet");
+                Console.WriteLine("Options: ");
+                string s = "";
+                foreach (Card card in pack)
+                    s += card.Nickname + " : " + string.Join(",", card.colorIdentity.Where(p => p.Value).Select(p => p.Key)) + ", ";
+                Console.WriteLine(s);
+            }
+            for (int pickNumber = 0; pickNumber < 2; pickNumber++)
+                BotPicks(botNumber, packSelection, pack);
+            botNumber++;
         }
+        currentPackCount++;
+        if (currentPackCount == 8)
+            currentPackCount = 0;
         CurrentPack = new List<Card>();
         StateHasChanged();
         CurrentPack = allPacks[packSelection][currentPackCount];
@@ -691,6 +717,21 @@
             packSelection++;
             if (packSelection < 3)
                 CurrentPack = allPacks[packSelection][currentPackCount];
+            else
+            {
+                if (debug)
+                {
+                    Console.WriteLine("FINISH");
+                    for (int i = 0; i < 7; i++)
+                    {
+                        Console.WriteLine("Bot: Commander:" + BotCommanders[i].Nickname + " Colors:" + string.Join(",", BotCommanders[i].colorIdentity.Where(p => p.Value).Select(p => p.Key)));
+                        string s = "";
+                        foreach (Card card in BotCards[i])
+                            s += card.Nickname + " : " + string.Join(",", card.colorIdentity.Where(p => p.Value).Select(p => p.Key)) + ", ";
+                        Console.WriteLine(s);
+                    }
+                }
+            }
         }
         UpdateGraphs();
         UpdateCurrentPackOrder();
@@ -856,8 +897,8 @@
             colorid = (JArray)card["color_identity"];
         }
         catch { }
-        name = name.ToLower().Trim();
 
+        name = name.ToLower().Trim();
         setcard.type = card["type_line"].ToString();
         setcard.imgurl = url;
         setcard.lowresimgurl = lowresurl;
@@ -872,14 +913,15 @@
         {
             setcard.price = .05m;
         }
-        setcard.rarity_enum = (Card.Rarity) Enum.Parse(typeof(Card.Rarity), setcard.rarity);
+        setcard.rarity_enum = (Card.Rarity)Enum.Parse(typeof(Card.Rarity), setcard.rarity);
         setcard.Name = "Card";
         setcard.count = 1;
+        setcard.imgurl = url;
+        setcard.lowresimgurl = lowresurl;
+        setcard.cmc = cmc;
+        setcard.colorIdentity = new Dictionary<Card.CMCColor, bool>();
         foreach (Card.CMCColor c in Enum.GetValues(typeof(Card.CMCColor)))
         {
-            setcard.imgurl = url;
-            setcard.lowresimgurl = lowresurl;
-            setcard.cmc = cmc;
 
             if (setcard.colors.ContainsKey(c))
                 continue;
@@ -889,6 +931,10 @@
                 int count = manacost.Count(p => p == c.ToString()[0]);
                 if (count > 0)
                     setcard.colors.Add(c, count);
+                if (c == Card.CMCColor.C)
+                    setcard.colorIdentity.Add(c, true);
+                else
+                    setcard.colorIdentity.Add(c, count > 0);
             }
             else
             {
@@ -897,6 +943,8 @@
                 {
                     setcard.colors.Add(c, 0);
                 }
+                if (c == Card.CMCColor.C)
+                    setcard.colorIdentity.Add(c, true);
             }
         }
         return setcard;
@@ -931,5 +979,90 @@
         }
         return partners;
     }
+    public void BotPicks(int botNumber, int packNumber, List<Card> Pack)
+    {
+        Console.WriteLine("bot pick: " + botNumber);
+        Card commander = BotCommanders[botNumber];
+        List<Card> bcards = BotCards[botNumber];
+        bool picked = false;
 
+        if (commander == null)
+        {
+            //find legendary
+            List<Card> legendaries = Pack.Where(p => p.type.Contains("Legendary") && p.type.Contains("Creature")).ToList();
+            foreach (Card legend in legendaries.OrderBy(p => p.rank))
+            {
+                if (legend.colorIdentity.Where(p => p.Value).Count() <= 2)
+                    continue;
+                if (legend.rank < 3000)
+                {
+                    PickCard(Pack, legend, botNumber);
+                    commander = legend;
+                    BotCommanders[botNumber] = commander;
+                    picked = true;
+                    break;
+                }
+            }
+            if (picked)
+                return;
+        }
+        if (commander == null && packNumber == 1)
+        {
+            //just choose legendary
+            List<Card> legendaries = Pack.Where(p => p.type.Contains("Legendary") && p.type.Contains("Creature")).ToList();
+            foreach (Card legend in legendaries.OrderBy(p => p.rank))
+            {
+                PickCard(Pack, legend, botNumber);
+                commander = legend;
+                picked = true;
+                break;
+            }
+            if (picked)
+                return;
+        }
+        if (commander == null)
+        {
+            //still no commander, emphasize artifacts and good cards
+            foreach (Card c in Pack.OrderBy(p => p.rank * (p.type.ToLower().Contains("artifact") ? 0.75f : 1)))
+            {
+                PickCard(Pack, c, botNumber);
+                break;
+            }
+        }
+        else
+        {
+            //ok choose for in colors
+            List<Card.CMCColor> commanderColors = commander.colorIdentity.Where(p => p.Value).Select(p => p.Key).ToList();
+            List<Card> commanderCards = Pack.Where(p => p.colorIdentity.Any(p => commanderColors.Contains(p.Key))).ToList();
+            foreach (Card cc in commanderCards.OrderBy(p => p.rank))
+            {
+                List<Card.CMCColor> cardColors = cc.colorIdentity.Where(p => p.Value).Select(p => p.Key).ToList();
+                if (cardColors.Any(p => !commanderColors.Contains(p)))
+                {
+                    //this card isnt part of color identity
+                }
+                else
+                {
+                    PickCard(Pack, cc, botNumber);
+                    picked = true;
+                    break;
+                }
+            }
+            if (picked)
+                return;
+            foreach (Card c in Pack.OrderBy(p => p.rank * (p.type.ToLower().Contains("artifact") ? 0.75f : 1)))
+            {
+                PickCard(Pack, c, botNumber);
+                break;
+            }
+        }
+
+    }
+    public void PickCard(List<Card> Pack, Card pick, int botNumber)
+    {
+        if (debug)
+            Console.WriteLine(pick.Nickname + " : " + string.Join(",", pick.colorIdentity.Where(p => p.Value).Select(p => p.Key)));
+        Pack.Remove(pick);
+        BotCards[botNumber].Add(pick);
+    }
 }

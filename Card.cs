@@ -40,6 +40,7 @@ public class Card
     public Dictionary<CMCColor, int> colors { get; set; }
     [JsonIgnore]
     public int cmc { get; set; }
+    public Dictionary<CMCColor,bool > colorIdentity { get; set; }
     public int rank { get; set; }
     public int CardID { get; set; }
     public string rarity { get; set; }
