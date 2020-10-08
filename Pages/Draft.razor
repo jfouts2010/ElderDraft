@@ -124,11 +124,34 @@
             <div align="center">
                 <button class="btn btn-primary" @onclick="GoToDeck">Main Deck (@Deck.Count)</button>
                 <button class="btn btn-default" @onclick="GoToSideboard">Sideboard (@SideBoardDeck.Count)</button>
+                <input id="fixlands" type="checkbox" @onclick="SwapFixLands" /><label for="fixlands">Fix Lands</label>
                 <button class="btn btn-primary" @onclick="DownloadFile">Export</button>
             </div>
             <br />
             <br />
             <table align="center">
+                <tr>
+                    <td colspan="5" style="text-align:center;">
+                        Sort by
+                        <select id="sortorder" @onchange="@(e => ChangeSortOrder(e))">
+                            <option value="@SortTypes.Popularity">Popularity</option>
+                            <option value="@SortTypes.Rarity">Rarity</option>
+                            <option value="@SortTypes.Price">$ Price</option>
+                            <option value="@SortTypes.CMC">CMC</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <label for="White">White <input type="checkbox" value="White" id="White" name="White" @onchange="@(e => ChangeSortColor(e,  Card.CMCColor.W))" /></label>
+                        <label for="Blue">Blue <input type="checkbox" value="Blue" id="Blue" name="Blue" @onchange="@(e => ChangeSortColor(e, Card.CMCColor.U))" /></label>
+                    </td>
+                    <td>
+                        <label for="Black">Black <input type="checkbox" value="Black" id="Black" name="Black" @onchange="@(e => ChangeSortColor(e,  Card.CMCColor.B))" /></label>
+                        <label for="Green">Green <input type="checkbox" value="Green" id="Green" name="Green" @onchange="@(e => ChangeSortColor(e,  Card.CMCColor.G))" /></label>
+                        <label for="Red">Red <input type="checkbox" value="Red" id="Red" name="Red" @onchange="@(e => ChangeSortColor(e,  Card.CMCColor.R))" /></label>
+                    </td>
+                </tr>
                 <tr>
                     <th valign="top">
                         <textarea style="height: 500px;width: 20vw;overflow: auto;">
@@ -211,7 +234,7 @@
         List<List<Card>> cards = new List<List<Card>>();
         cards.Add(Deck);
         cards.Add(SideBoardDeck);
-        await JSRuntime.InvokeAsync<object>("FileSaveAs", "Deck - " + DateTime.Now.ToShortDateString().Replace('/', '-') + ".json", TabletopDeck.Create(cards));
+        await JSRuntime.InvokeAsync<object>("FileSaveAs","Deck - " + DateTime.Now.ToShortDateString().Replace('/', '-') + ".json",TabletopDeck.Create(cards, fixlands));
     }
     class ColorDataItem
     {
@@ -252,6 +275,7 @@
     public static string styleSelected = "width: 225px;border-width: .5vw;border-style: solid; border-color: SlateBlue;";
     Dictionary<int, string> buttonStyle = new Dictionary<int, string>();
     List<int> selectedCards = new List<int>();
+    bool fixlands = false;
     List<Card.CMCColor> orderColors = new List<Card.CMCColor>();
     public SortTypes currentSort = SortTypes.Popularity;
     public bool sortreverse = false;
@@ -340,28 +364,36 @@
     public void UpdateCurrentPackOrder()
     {
         //do secondary sort... first? Logical.
-        if (sortreverse)
+        if(sortreverse)
         {
             switch (currentSort)
             {
                 case SortTypes.Popularity:
                     {
                         CurrentPack = CurrentPack.OrderByDescending(p => p.rank).ToList();
+                        Deck = Deck.OrderByDescending(p => p.rank).ToList();
+                        SideBoardDeck = SideBoardDeck.OrderByDescending(p => p.rank).ToList();
                         break;
                     }
                 case SortTypes.Price:
                     {
                         CurrentPack = CurrentPack.OrderBy(p => p.price).ToList();
+                        Deck = Deck.OrderBy(p => p.price).ToList();
+                        SideBoardDeck = SideBoardDeck.OrderBy(p => p.price).ToList();
                         break;
                     }
                 case SortTypes.CMC:
                     {
                         CurrentPack = CurrentPack.OrderByDescending(p => p.cmc).ToList();
+                        Deck = Deck.OrderByDescending(p => p.cmc).ToList();
+                        SideBoardDeck = SideBoardDeck.OrderByDescending(p => p.cmc).ToList();
                         break;
                     }
                 case SortTypes.Rarity:
                     {
                         CurrentPack = CurrentPack.OrderBy(p => (int)p.rarity_enum).ToList();
+                        Deck = Deck.OrderBy(p => (int)p.rarity_enum).ToList();
+                        SideBoardDeck = SideBoardDeck.OrderBy(p => (int)p.rarity_enum).ToList();
                         break;
                     }
             }
@@ -373,21 +405,30 @@
                 case SortTypes.Popularity:
                     {
                         CurrentPack = CurrentPack.OrderBy(p => p.rank).ToList();
+                        Deck = Deck.OrderBy(p => p.rank).ToList();
+                        SideBoardDeck = SideBoardDeck.OrderBy(p => p.rank).ToList();
                         break;
                     }
                 case SortTypes.Price:
                     {
                         CurrentPack = CurrentPack.OrderByDescending(p => p.price).ToList();
+                        Deck = Deck.OrderByDescending(p => p.price).ToList();
+                        SideBoardDeck = SideBoardDeck.OrderByDescending(p => p.price).ToList();
                         break;
                     }
                 case SortTypes.CMC:
                     {
                         CurrentPack = CurrentPack.OrderBy(p => p.cmc).ToList();
+                        Deck = Deck.OrderBy(p => p.cmc).ToList();
+                        SideBoardDeck = SideBoardDeck.OrderBy(p => p.cmc).ToList();
+
                         break;
                     }
                 case SortTypes.Rarity:
                     {
                         CurrentPack = CurrentPack.OrderByDescending(p => (int)p.rarity_enum).ToList();
+                        Deck = Deck.OrderByDescending(p => (int)p.rarity_enum).ToList();
+                        SideBoardDeck = SideBoardDeck.OrderByDescending(p => (int)p.rarity_enum).ToList();
                         break;
                     }
             }
@@ -396,6 +437,8 @@
         if (orderColors.Count > 0)
         {
             CurrentPack = CurrentPack.OrderByDescending(p => p.colors.Keys.ToList().All(x => orderColors.Contains(x))).ToList();
+            Deck = Deck.OrderByDescending(p => p.colors.Keys.ToList().All(x => orderColors.Contains(x))).ToList();
+            SideBoardDeck = SideBoardDeck.OrderByDescending(p => p.colors.Keys.ToList().All(x => orderColors.Contains(x))).ToList();
         }
         StateHasChanged();
     }
@@ -427,7 +470,7 @@
                         if (jsonResponse["data"].Count() < 175)
                             break;
                     }
-                    catch (Exception e)
+                    catch(Exception e)
                     {
                         await JSRuntime.InvokeAsync<object>("Alert", e.Message);
                     }
@@ -491,10 +534,9 @@
                 page++;
             }
         }
-        CubeCards.AddRange(CommanderClassic());
-        CubeCards = CubeCards.Distinct().ToList();
         for (int i2 = 0; i2 < 3; i2++)
         {
+            CubeCards.AddRange(CommanderClassic());
             List<Card> Myth = CubeCards.Where(p => p.rarity == "mythic").ToList();
             List<Card> rare = CubeCards.Where(p => p.rarity == "rare").ToList();
             List<Card> uncom = CubeCards.Where(p => p.rarity == "uncommon").ToList();
@@ -606,6 +648,11 @@
     public void GoToSideboard()
     {
         SideBoard = true;
+    }
+
+    public void SwapFixLands()
+    {
+        fixlands = !fixlands;
     }
 
     public void SelectCards()
@@ -825,7 +872,7 @@
         {
             setcard.price = .05m;
         }
-        setcard.rarity_enum = (Card.Rarity)Enum.Parse(typeof(Card.Rarity), setcard.rarity);
+        setcard.rarity_enum = (Card.Rarity) Enum.Parse(typeof(Card.Rarity), setcard.rarity);
         setcard.Name = "Card";
         setcard.count = 1;
         foreach (Card.CMCColor c in Enum.GetValues(typeof(Card.CMCColor)))
