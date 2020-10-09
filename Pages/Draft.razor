@@ -229,13 +229,13 @@
     </div>
 </div>
 @code {
-        public async void DownloadFile()
-        {
-            List<List<Card>> cards = new List<List<Card>>();
-            cards.Add(Deck);
-            cards.Add(SideBoardDeck);
-            await JSRuntime.InvokeAsync<object>("FileSaveAs", "Deck - " + DateTime.Now.ToShortDateString().Replace('/', '-') + ".json", TabletopDeck.Create(cards, fixlands));
-        }
+    public async void DownloadFile()
+    {
+        List<List<Card>> cards = new List<List<Card>>();
+        cards.Add(Deck);
+        cards.Add(SideBoardDeck);
+        await JSRuntime.InvokeAsync<object>("FileSaveAs", "Deck - " + DateTime.Now.ToShortDateString().Replace('/', '-') + ".json", TabletopDeck.Create(cards, fixlands));
+    }
     class ColorDataItem
     {
         public string Color { get; set; }
@@ -309,7 +309,8 @@
     }
     Task Startup()
     {
-
+        string asdf = File.ReadAllText("Card.cs");
+        string f = File.ReadAllText("ALLCARDS.txt");
         var uri = navManager.ToAbsoluteUri(navManager.Uri);
         if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("query", out var param))
         {
