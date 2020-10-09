@@ -24,8 +24,15 @@
     protected override async Task OnInitializedAsync()
     {
         Data d = new Data();
-        Themes = JsonConvert.DeserializeObject<List<Theme>>(new Data().ThemesString);
-        Themes.AddRange(JsonConvert.DeserializeObject<List<Theme>>(new Data().TribeString));
+        List<Theme> badThemes = new List<Theme>();
+        badThemes = JsonConvert.DeserializeObject<List<Theme>>(new Data().ThemesString);
+        badThemes.AddRange(JsonConvert.DeserializeObject<List<Theme>>(new Data().TribeString));
+        List<Theme> Themes = new List<Theme>();
+        foreach (Theme badtheme in badThemes)
+        {
+            if (!Themes.Any(p => p.name == badtheme.name))
+                Themes.Add(badtheme);
+        }
         await Task.CompletedTask;
     }
     class Theme

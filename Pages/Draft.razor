@@ -309,8 +309,6 @@
     }
     Task Startup()
     {
-        string asdf = File.ReadAllText("Card.cs");
-        string f = File.ReadAllText("ALLCARDS.txt");
         var uri = navManager.ToAbsoluteUri(navManager.Uri);
         if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("query", out var param))
         {
@@ -451,8 +449,7 @@
     {
         int page = 1;
         List<Card> CubeCards = new List<Card>();
-
-
+       
         if (!themedraft)
         {
             while (true)
@@ -485,10 +482,10 @@
         }
         else
         {
-
             List<Theme> Themes = new List<Theme>();
             Themes = JsonConvert.DeserializeObject<List<Theme>>(new Data().ThemesString);
             Themes.AddRange(JsonConvert.DeserializeObject<List<Theme>>(new Data().TribeString));
+            Themes = Themes.Distinct().ToList();
             List<string> cardnames = new List<string>();
             List<string> themes = setQuery.Split(',').ToList();
             themesReadable = string.Join(',', themes.Select(p => p.Replace("/themes/", "").Replace("/tribes/", "")));
