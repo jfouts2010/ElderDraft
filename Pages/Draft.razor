@@ -449,7 +449,7 @@
     {
         int page = 1;
         List<Card> CubeCards = new List<Card>();
-       
+
         if (!themedraft)
         {
             while (true)
@@ -482,58 +482,80 @@
         }
         else
         {
+            List<Theme> badThemes = new List<Theme>();
+            badThemes = JsonConvert.DeserializeObject<List<Theme>>(new Data().ThemesString);
+            badThemes.AddRange(JsonConvert.DeserializeObject<List<Theme>>(new Data().TribeString));
             List<Theme> Themes = new List<Theme>();
-            Themes = JsonConvert.DeserializeObject<List<Theme>>(new Data().ThemesString);
-            Themes.AddRange(JsonConvert.DeserializeObject<List<Theme>>(new Data().TribeString));
-            Themes = Themes.Distinct().ToList();
+            foreach(Theme badtheme in badThemes)
+            {
+                if (!Themes.Any(p => p.name == badtheme.name))
+                    Themes.Add(badtheme);
+            }
             List<string> cardnames = new List<string>();
             List<string> themes = setQuery.Split(',').ToList();
             themesReadable = string.Join(',', themes.Select(p => p.Replace("/themes/", "").Replace("/tribes/", "")));
+            int count = 1;
             foreach (string themeName in themes)
             {
                 Theme t = Themes.First(p => p.name == themeName);
-                cardnames.AddRange(t.cards);
-            }
-            List<Call> calls = new List<Call>();
-            Call c = new Call();
-            c.identifiers = new List<Identifier>();
-            foreach (string cardLine in cardnames.Distinct().ToList())
-            {
-                Identifier i = new Identifier();
-                i.name = cardLine;
-                if (c.identifiers.Count == 75)
-                {
-                    calls.Add(c);
-                    c = new Call();
-                    c.identifiers = new List<Identifier>();
-                    c.identifiers.Add(i);
-                }
-                else
-                    c.identifiers.Add(i);
-            }
-            int callnumber = 0;
-            while (callnumber < calls.Count)
-            {
+                //pull from github
                 var cli = new HttpClient();
-                string content = "";
-                string jsondata1 = JsonConvert.SerializeObject(calls[callnumber]);
-                callnumber++;
-                var buffer = System.Text.Encoding.UTF8.GetBytes(jsondata1);
-                var byteContent = new ByteArrayContent(buffer);
-                byteContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-                var asdf = await cli.PostAsync("https://api.scryfall.com/cards/collection", byteContent);
-                content = await asdf.Content.ReadAsStringAsync();
+                var asdf = await cli.GetAsync("https://raw.githubusercontent.com/thatsgerman/ElderDraft/master/big_data/" + themeName.Replace("/themes/", "").Replace("/tribes/", ""));
+                string content = await asdf.Content.ReadAsStringAsync();
                 JObject jsonResponse = JObject.Parse(content);
-                foreach (JToken card in jsonResponse["data"])
+                foreach (var card in jsonResponse)
                 {
-                    Card newCard = JsonToCard(card);
+                    string cardString = card.Value.ToString();
+                    JToken cardjtokenConvert = JsonConvert.DeserializeObject<JToken>(cardString);
+                    Card newCard = JsonToCard(cardjtokenConvert);
                     if (newCard != null)
                         CubeCards.Add(newCard);
                 }
-                progress = (int)(((decimal)callnumber * 75M / (decimal)cardnames.Distinct().Count()) * 100M);
+                progress = (int)(((decimal)count++ / (decimal)themes.Count()) * 100M);
                 StateHasChanged();
-                page++;
+                //cardnames.AddRange(t.cards);
             }
+
+            /* List<Call> calls = new List<Call>();
+             Call c = new Call();
+             c.identifiers = new List<Identifier>();
+             foreach (string cardLine in cardnames.Distinct().ToList())
+             {
+                 Identifier i = new Identifier();
+                 i.name = cardLine;
+                 if (c.identifiers.Count == 75)
+                 {
+                     calls.Add(c);
+                     c = new Call();
+                     c.identifiers = new List<Identifier>();
+                     c.identifiers.Add(i);
+                 }
+                 else
+                     c.identifiers.Add(i);
+             }
+             int callnumber = 0;
+             while (callnumber < calls.Count)
+             {
+                 var cli = new HttpClient();
+                 string content = "";
+                 string jsondata1 = JsonConvert.SerializeObject(calls[callnumber]);
+                 callnumber++;
+                 var buffer = System.Text.Encoding.UTF8.GetBytes(jsondata1);
+                 var byteContent = new ByteArrayContent(buffer);
+                 byteContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+                 var asdf = await cli.PostAsync("https://api.scryfall.com/cards/collection", byteContent);
+                 content = await asdf.Content.ReadAsStringAsync();
+                 JObject jsonResponse = JObject.Parse(content);
+                 foreach (JToken card in jsonResponse["data"])
+                 {
+                     Card newCard = JsonToCard(card);
+                     if (newCard != null)
+                         CubeCards.Add(newCard);
+                 }
+                 progress = (int)(((decimal)callnumber * 75M / (decimal)cardnames.Distinct().Count()) * 100M);
+                 StateHasChanged();
+                 page++;
+             }*/
         }
         //CubeCards.AddRange(CommanderClassic());
         CubeCards = RemoveBannedCards(CubeCards);

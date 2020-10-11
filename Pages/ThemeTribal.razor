@@ -45,6 +45,15 @@
     List<Theme> Themes = new List<Theme>();
     public void GenerateQuery()
     {
+        List<Theme> badThemes = new List<Theme>();
+        badThemes = JsonConvert.DeserializeObject<List<Theme>>(new Data().ThemesString);
+        badThemes.AddRange(JsonConvert.DeserializeObject<List<Theme>>(new Data().TribeString));
+        List<Theme> Themes = new List<Theme>();
+        foreach (Theme badtheme in badThemes)
+        {
+            if (!Themes.Any(p => p.name == badtheme.name))
+                Themes.Add(badtheme);
+        }
         List<int> themeNumbers = new List<int>();
         for (int i = 0; i < 10000; i++)
         {
