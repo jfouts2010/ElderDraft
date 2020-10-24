@@ -561,10 +561,10 @@
         CubeCards = RemoveBannedCards(CubeCards);
         for (int i2 = 0; i2 < 3; i2++)
         {
-            List<Card> Myth = CubeCards.Where(p => p.rarity == "mythic").ToList();
+            /*List<Card> Myth = CubeCards.Where(p => p.rarity == "mythic").ToList();
             List<Card> rare = CubeCards.Where(p => p.rarity == "rare").ToList();
             List<Card> uncom = CubeCards.Where(p => p.rarity == "uncommon").ToList();
-            List<Card> common = CubeCards.Where(p => p.rarity == "common").ToList();
+            List<Card> common = CubeCards.Where(p => p.rarity == "common").ToList();*/
             List<Card> legendaries = CubeCards.Where(p => p.type.Contains("Legendary") && p.type.Contains("Creature")).ToList();
             //List<Card> partners = AddPartners();
             //legendaries.AddRange(partners);
@@ -582,61 +582,84 @@
                 {
                     bool myth = false;
                     List<Card> availLegendaries = legendaries.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p) && !p.type.ToLower().Contains("land")).ToList();
-                    if (myth)
-                        availLegendaries = availLegendaries.Where(p => p.rarity != "mythic").ToList();
+                    /* if (myth)
+                         availLegendaries = availLegendaries.Where(p => p.rarity != "mythic").ToList();*/
                     Card c = availLegendaries[r.Next(0, availLegendaries.Count())];
-                    if (c.rarity == "mythic")
-                        myth = true;
+                    /* if (c.rarity == "mythic")
+                         myth = true;*/
                     packCards.Add(c);
                 }
                 //rare/myth slot
-                for (int l = 0; l < 6; l++)
+                /*  for (int l = 0; l < 6; l++)
+                  {
+                      bool myth = false;
+                      bool gotMyth = r.Next(0, 100) > 86;
+                      if (!myth && gotMyth)
+                      {
+                          List<Card> availMyth = Myth.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p)).ToList();
+                          if (banLands)
+                              availMyth = availMyth.Where(p => !p.type.ToLower().Contains("land")).ToList();
+                          Card c = availMyth[r.Next(0, availMyth.Count())];
+                          myth = true;
+                          packCards.Add(c);
+                          if (c.type.ToLower().Contains("land"))
+                              lands++;
+                      }
+                      else
+                      {
+                          List<Card> availRare = rare.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p)).ToList();
+                          if (banLands)
+                              availRare = availRare.Where(p => !p.type.ToLower().Contains("land")).ToList();
+                          Card c = availRare[r.Next(0, availRare.Count())];
+                          packCards.Add(c);
+                          if (c.type.ToLower().Contains("land"))
+                              lands++;
+                      }
+                  }
+                  //uncommons
+                  for (int l = 0; l < 8; l++)
+                  {
+                      List<Card> availuncomm = uncom.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p)).ToList();
+                      if (banLands)
+                          availuncomm = availuncomm.Where(p => !p.type.ToLower().Contains("land")).ToList();
+                      Card c = availuncomm[r.Next(0, availuncomm.Count())];
+                      packCards.Add(c);
+                      if (c.type.ToLower().Contains("land"))
+                          lands++;
+                  }
+                  //commons
+                  for (int l = 0; l < 4; l++)
+                  {
+                      List<Card> availcommon = common.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p)).ToList();
+                      if (banLands)
+                          availcommon = availcommon.Where(p => !p.type.ToLower().Contains("land")).ToList();
+                      Card c = availcommon[r.Next(0, availcommon.Count())];
+                      packCards.Add(c);
+                      if (c.type.ToLower().Contains("land"))
+                          lands++;
+                  }*/
+                for(int l = 0; l < 9; l++)
                 {
-                    bool myth = false;
-                    bool gotMyth = r.Next(0, 100) > 86;
-                    if (!myth && gotMyth)
-                    {
-                        List<Card> availMyth = Myth.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p)).ToList();
-                        if (banLands)
-                            availMyth = availMyth.Where(p => !p.type.ToLower().Contains("land")).ToList();
-                        Card c = availMyth[r.Next(0, availMyth.Count())];
-                        myth = true;
-                        packCards.Add(c);
-                        if (c.type.ToLower().Contains("land"))
-                            lands++;
-                    }
-                    else
-                    {
-                        List<Card> availRare = rare.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p)).ToList();
-                        if (banLands)
-                            availRare = availRare.Where(p => !p.type.ToLower().Contains("land")).ToList();
-                        Card c = availRare[r.Next(0, availRare.Count())];
-                        packCards.Add(c);
-                        if (c.type.ToLower().Contains("land"))
-                            lands++;
-                    }
-                }
-                //uncommons
-                for (int l = 0; l < 8; l++)
-                {
-                    List<Card> availuncomm = uncom.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p)).ToList();
-                    if (banLands)
-                        availuncomm = availuncomm.Where(p => !p.type.ToLower().Contains("land")).ToList();
-                    Card c = availuncomm[r.Next(0, availuncomm.Count())];
+                    List<Card> availCards = CubeCards.Where(p => !packCards.Select(p => p.Nickname).ToList().Contains(p.Nickname)).ToList();
+                    Card c = availCards[r.Next(0, availCards.Count())];
+
                     packCards.Add(c);
                     if (c.type.ToLower().Contains("land"))
                         lands++;
+
                 }
-                //commons
-                for (int l = 0; l < 4; l++)
+                for (int l = 0; l < 9; l++)
                 {
-                    List<Card> availcommon = common.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p)).ToList();
-                    if (banLands)
-                        availcommon = availcommon.Where(p => !p.type.ToLower().Contains("land")).ToList();
-                    Card c = availcommon[r.Next(0, availcommon.Count())];
+                    List<string> TopCards = JsonConvert.DeserializeObject<List<string>>(new Data().TopCards);
+
+                    List<Card> availCards = CubeCards.Where(p => !packCards.Select(p => p.Nickname).ToList().Contains(p.Nickname)).ToList();
+                    availCards = availCards.Where(p => !TopCards.Contains(p.Nickname)).ToList();
+                    Card c = availCards[r.Next(0, availCards.Count())];
+
                     packCards.Add(c);
                     if (c.type.ToLower().Contains("land"))
                         lands++;
+
                 }
                 Packs.Add(packCards);
                 cardsInPacks.AddRange(packCards);
