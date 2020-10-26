@@ -23,16 +23,6 @@
 @code {
     protected override async Task OnInitializedAsync()
     {
-        Data d = new Data();
-        List<Theme> badThemes = new List<Theme>();
-        badThemes = JsonConvert.DeserializeObject<List<Theme>>(new Data().ThemesString);
-        badThemes.AddRange(JsonConvert.DeserializeObject<List<Theme>>(new Data().TribeString));
-        List<Theme> Themes = new List<Theme>();
-        foreach (Theme badtheme in badThemes)
-        {
-            if (!Themes.Any(p => p.name == badtheme.name))
-                Themes.Add(badtheme);
-        }
         await Task.CompletedTask;
     }
     class Theme
@@ -45,22 +35,18 @@
     List<Theme> Themes = new List<Theme>();
     public void GenerateQuery()
     {
-        List<Theme> badThemes = new List<Theme>();
-        badThemes = JsonConvert.DeserializeObject<List<Theme>>(new Data().ThemesString);
-        badThemes.AddRange(JsonConvert.DeserializeObject<List<Theme>>(new Data().TribeString));
-        List<Theme> Themes = new List<Theme>();
-        foreach (Theme badtheme in badThemes)
-        {
-            if (!Themes.Any(p => p.name == badtheme.name))
-                Themes.Add(badtheme);
-        }
+        List<Theme> themes = JsonConvert.DeserializeObject<List<Theme>>(new Data().ThemesString);
+        List<Theme> tribes = JsonConvert.DeserializeObject<List<Theme>>(new Data().TribeString);
         List<int> themeNumbers = new List<int>();
-        for (int i = 0; i < 10000; i++)
+        List<int> tribeNumbers = new List<int>();
+        for (int i = 0; i < 1000; i++)
         {
             Random r = new Random();
-            int totalThemes = Themes.Count;
+            int totalThemes = themes.Count;
+            int totalTribes = tribes.Count;
             themeNumbers = new List<int>();
-            while (themeNumbers.Count < 6)
+            tribeNumbers = new List<int>();
+            while (themeNumbers.Count < 4)
             {
                 int rand = r.Next(0, totalThemes);
                 if (!themeNumbers.Contains(rand))
@@ -68,9 +54,20 @@
                     themeNumbers.Add(rand);
                 }
             }
+            while (tribeNumbers.Count < 2)
+            {
+                int rand = r.Next(0, totalTribes);
+                if (!tribeNumbers.Contains(rand))
+                {
+                    tribeNumbers.Add(rand);
+                }
+            }
         }
-        setQuery = string.Join(',', themeNumbers.Select(p => Themes[p].name).ToList());
-        readableQuery = string.Join(',', themeNumbers.Select(p => Themes[p].name.Replace("/themes/", "").Replace("/tribes/", "")));
+        List<string> allTT = new List<string>();
+        allTT.AddRange(themeNumbers.Select(p => themes[p].name).ToList());
+        allTT.AddRange(tribeNumbers.Select(p => tribes[p].name).ToList());
+        setQuery = string.Join(',', allTT);
+        readableQuery = string.Join(',', allTT.Select(p => p.Replace("/themes/", "").Replace("/tribes/", "")));
     }
     public void Submit()
     {
