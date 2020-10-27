@@ -6,7 +6,7 @@
   "linkerEnabled": false,
   "resources": {
     "assembly": {
-      "ElderDraft.dll": "sha256-nOiA\/YMSz3cLEVCA8Oeu0PRfD2TKHhJjHbcK5OwSxIU=",
+      "ElderDraft.dll": "sha256-slVJ5cGa913183w1VDFnNgw7XLhStW3oHt7dEStLJBg=",
       "Blazored.LocalStorage.dll": "sha256-7+FtaZd2xSysaMLC59XhYdtkNMZ15ha0lk73dxPdT5w=",
       "Microsoft.Extensions.DependencyInjection.Abstractions.dll": "sha256-Bs1Wrmh4ex9dTEIT0yCRF52N\/wOmsBDt457BHr0\/ssM=",
       "netstandard.dll": "sha256-\/zcPVM75OAY+joGVM8yIC1gO1SFYWP1CFERgQ8PJkfA=",
