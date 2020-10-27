@@ -679,11 +679,11 @@
 
         int count = cubeCards.Count();
         cubeCards = cubeCards.Where(p=>p.Nickname.ToLower() != "urza, lord high").ToList();
-        count = cubeCards.Count();
         cubeCards = cubeCards.Where(p => p.Nickname.ToLower() != "cyclonic rift").ToList();
-        count = cubeCards.Count();
         cubeCards = cubeCards.Where(p => p.Nickname.ToLower() != "fierce guardianship").ToList();
-        count = cubeCards.Count();
+        cubeCards = cubeCards.Where(p => p.Nickname.ToLower() != "deadly rollick").ToList();
+        cubeCards = cubeCards.Where(p => p.Nickname.ToLower() != "deflecting swat").ToList();
+        cubeCards = cubeCards.Where(p => p.Nickname.ToLower() != "flawless maneuver").ToList();
         return cubeCards;
     }
     public void MoveToSideBoard(int i)
