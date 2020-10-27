@@ -486,7 +486,7 @@
             badThemes = JsonConvert.DeserializeObject<List<Theme>>(new Data().ThemesString);
             badThemes.AddRange(JsonConvert.DeserializeObject<List<Theme>>(new Data().TribeString));
             List<Theme> Themes = new List<Theme>();
-            foreach(Theme badtheme in badThemes)
+            foreach (Theme badtheme in badThemes)
             {
                 if (!Themes.Any(p => p.name == badtheme.name))
                     Themes.Add(badtheme);
@@ -638,7 +638,7 @@
                       if (c.type.ToLower().Contains("land"))
                           lands++;
                   }*/
-                for(int l = 0; l < 9; l++)
+                for (int l = 0; l < 9; l++)
                 {
                     List<Card> availCards = CubeCards.Where(p => !packCards.Select(p => p.Nickname).ToList().Contains(p.Nickname)).ToList();
                     Card c = availCards[r.Next(0, availCards.Count())];
@@ -676,7 +676,14 @@
     }
     public List<Card> RemoveBannedCards(List<Card> cubeCards)
     {
-        cubeCards.Remove(cubeCards.FirstOrDefault(p => p.Nickname == "Urza, Lord High Artificer"));
+
+        int count = cubeCards.Count();
+        cubeCards = cubeCards.Where(p=>p.Nickname.ToLower() != "urza, lord high").ToList();
+        count = cubeCards.Count();
+        cubeCards = cubeCards.Where(p => p.Nickname.ToLower() != "cyclonic rift").ToList();
+        count = cubeCards.Count();
+        cubeCards = cubeCards.Where(p => p.Nickname.ToLower() != "fierce guardianship").ToList();
+        count = cubeCards.Count();
         return cubeCards;
     }
     public void MoveToSideBoard(int i)
