@@ -25,7 +25,7 @@ public class TabletopDeck
 
     public static string Create(List<List<Card>> cards, bool fixlands)
     {
-        TabletopDeck final = TabletopDeck.FullCreateDeck(cards, fixlands);
+        TabletopDeck final = new TabletopDeck(cards, fixlands);
         string output = JsonConvert.SerializeObject(final, Formatting.Indented);
         return output;
         /*SaveFileDialog save = new SaveFileDialog();
