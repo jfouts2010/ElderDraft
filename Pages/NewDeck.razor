@@ -393,7 +393,7 @@
           }*/
 
         string deckname = (string.IsNullOrEmpty(deckCommander) ? "" : deckCommander + " ") + "Deck-" + DateTime.Now.ToShortDateString().Replace('/', '-') + ".json";
-        TabletopDeck final = new TabletopDeck(cards, false, fixlands);
+        TabletopDeck final = new TabletopDeck(cards,  fixlands);
         string output = JsonConvert.SerializeObject(final, Formatting.Indented);
         int x = 5;
         await JSRuntime.InvokeAsync<object>(

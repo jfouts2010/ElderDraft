@@ -22,10 +22,10 @@ public class Call
 }
 public class TabletopDeck
 {
-    
+
     public static string Create(List<List<Card>> cards, bool fixlands)
     {
-        TabletopDeck final = new TabletopDeck(cards, false, fixlands);
+        TabletopDeck final = TabletopDeck.FullCreateDeck(cards, fixlands);
         string output = JsonConvert.SerializeObject(final, Formatting.Indented);
         return output;
         /*SaveFileDialog save = new SaveFileDialog();
@@ -43,8 +43,8 @@ public class TabletopDeck
             writer.Close();
         }*/
     }
-   
-    public TabletopDeck(List<List<Card>> cards, bool draft, bool autogen_lands)//, List<Card> Tokens, bool draft, Card commanderCard)
+
+    public TabletopDeck(List<List<Card>> cards, bool autogen_lands)//, List<Card> Tokens, bool draft, Card commanderCard)
     {
         List<objectstate> tempobjects = new List<objectstate>();
         int sideboardCount = 0;
@@ -81,23 +81,6 @@ public class TabletopDeck
                 tempobjects[sideboardCount].CustomDeck.Add(xx++.ToString(), new CardImage(c));
             }
             tempobjects[sideboardCount].Transform.posX = sideboardCount * -4;
-            sideboardCount++;
-        }
-        if (draft && !autogen_lands)
-        {
-            tempobjects.Add(new objectstate());
-            foreach (Card c in lands.Values)
-            {
-                c.CardID = currentCardId++ * 100;
-                for (int i = 0; i < c.count; i++)
-                {
-                    tempobjects[sideboardCount].DeckIDs.Add(c.CardID);
-                    tempobjects[sideboardCount].ContainedObjects.Add(c);
-                }
-
-                tempobjects[sideboardCount].CustomDeck.Add(xx++.ToString(), new CardImage(c));
-            }
-            tempobjects[sideboardCount].Transform.posX = sideboardCount * -4;//move off of main stack
             sideboardCount++;
         }
         this.ObjectStates = tempobjects.ToArray();
@@ -171,6 +154,282 @@ public class TabletopDeck
         });
         return lands;
     }
+
+    public static TabletopDeck FullCreateDeck(List<List<Card>> cardsin, bool fixlands)
+    {
+        Card CommanderCard = null;
+        List<string> deck = new List<string>();
+        foreach (List<Card> list in cardsin)
+        {
+            foreach (Card c in list)
+                deck.Add(c.Nickname);
+            deck.Add("");
+        }
+        List<Dictionary<string, string>> identifiers = new List<Dictionary<string, string>>();
+        Dictionary<string, object> data = new Dictionary<string, object>();
+        List<Dictionary<string, object>> calls = new List<Dictionary<string, object>>();
+        List<List<Card>> cards = new List<List<Card>>();
+        List<Card> currentList = new List<Card>();
+
+        //List<Card> tokens = new List<Card>();
+        int cardI = 1;
+        foreach (string cardLine in deck)
+        {
+            if (string.IsNullOrEmpty(cardLine))
+            {
+                if (currentList.Count > 0)
+                    cards.Add(currentList);
+                currentList = new List<Card>();
+                continue;
+            }
+            try
+            {
+                int count = 1;
+                string name = cardLine.Trim();
+                if (cardLine.Contains(" ") && int.TryParse(cardLine.Split(' ')[0], out int derp))
+                {
+                    count = Convert.ToInt32(cardLine.Substring(0, cardLine.IndexOf(' ')));
+                    name = cardLine.Substring(cardLine.IndexOf(' ') + 1);
+                }
+                //lands
+                /* if (badnames.Contains(name.Trim().ToLower()))
+                     continue;*/
+                Dictionary<string, string> DataBindings = new Dictionary<string, string>();
+                DataBindings.Add("name", name);
+                if (!identifiers.Any(p => p.ContainsValue(name)))
+                    identifiers.Add(DataBindings);
+                /* if (!string.IsNullOrEmpty(deckCommander))
+                     if (name == deckCommander)
+                         continue;*/
+                Card c = new Card()
+                {
+
+                    //CardID = cardI++ * 100,
+                    count = count,
+                    Nickname = name,
+                };
+
+
+                //c.CardID = cardI++ * 100;
+                currentList.Add(c);
+
+                if (identifiers.Count > 70)
+                {
+                    data.Add("identifiers", identifiers);
+                    calls.Add(data);
+                    data = new Dictionary<string, object>();
+                    identifiers = new List<Dictionary<string, string>>();
+                }
+            }
+            catch
+            {
+                if (currentList.Count > 0)
+                    cards.Add(currentList);
+                currentList = new List<Card>();
+            }
+        }
+        if (currentList.Count > 0)
+            cards.Add(currentList);
+        if (identifiers.Count > 0)
+        {
+            data.Add("identifiers", identifiers);
+            calls.Add(data);
+        }
+        List<Card> tokens = new List<Card>();//tokens!
+                                             //tokens.Add(new Card()
+                                             //{
+                                             //    Nickname = "Human Soldier",
+                                             //    imgurl = "https://img.scryfall.com/cards/large/front/1/e/1e76f0e3-9411-401d-ab38-9c3c64769483.jpg?1578936729",
+                                             //    CardID = cardI++ * 100,
+                                             //    count=1,
+                                             //});
+        List<string> tokenSearchIds = new List<string>();
+
+        foreach (var d in calls)
+        {
+            string jsondata = JsonConvert.SerializeObject(d);
+            var cli = new HttpClient();
+            var buffer = System.Text.Encoding.UTF8.GetBytes(jsondata);
+            var byteContent = new ByteArrayContent(buffer);
+            byteContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+            var asdf = cli.PostAsync("https://api.scryfall.com/cards/collection", byteContent);
+            string content = asdf.Result.Content.ToString();
+            //HttpWebRequest request = System.Net.WebRequest.Create("https://api.scryfall.com/cards/collection") as HttpWebRequest;
+            //request.Method = "POST";
+            //request.ContentType = "application/json";
+            //ASCIIEncoding encoding = new ASCIIEncoding();
+            //byte[] byte1 = encoding.GetBytes(jsondata);
+            //request.ContentLength = byte1.Length;
+            //Stream newStream = request.GetRequestStream();
+            //newStream.Write(byte1, 0, byte1.Length);
+            List<string> notfound = new List<string>();
+            //Dictionary<string, string> CardAndURL = new Dictionary<string, string>();
+            //using (HttpWebResponse response = request.GetResponse() as HttpWebResponse)
+            //{
+            //    Stream receiveStream = response.GetResponseStream();
+            //    StreamReader readStream = null;
+            //    if (response.CharacterSet == null || response.CharacterSet == "")
+            //        readStream = new StreamReader(receiveStream);
+            //    else
+            //        readStream = new StreamReader(receiveStream, Encoding.GetEncoding(response.CharacterSet));
+            JObject jsonResponse = JObject.Parse(content);
+            foreach (var selection in jsonResponse["not_found"])
+                foreach (var card in selection)
+                    notfound.Add(card.First.ToString());
+            foreach (var card in jsonResponse["data"])
+            {
+                string url = "";
+                if (card["card_faces"] != null && card["image_uris"] == null)
+                {
+                    for (int i = 0; i < card["card_faces"].Count(); i++)
+                    {
+                        var cardInfo = card["card_faces"][i];
+                        if (i == 0)
+                            url = cardInfo["image_uris"]["large"].ToString();
+                        else
+                        {
+                            //needs to check if it has image uris
+
+                            Card c = new Card()
+                            {
+                                Nickname = cardInfo["name"].ToString(),
+                                count = 1,
+                                imgurl = cardInfo["image_uris"]["large"].ToString()
+                            };
+                            tokens.Add(c);
+                        }
+                    }
+                }
+                else
+                    url = card["image_uris"]["large"].ToString();
+                string name = card["name"].ToString();
+
+                string manacost = "0";
+
+                int cmc = 0;
+                JArray colorid = new JArray();
+
+                try
+                {
+                    manacost = card["mana_cost"].ToString();
+                    cmc = Convert.ToInt32(card["cmc"].ToString());
+                    colorid = (JArray)card["color_identity"];
+                }
+                catch { }
+                if (name.StartsWith("Kala"))
+                {
+
+                }
+                name = name.ToLower().Trim();
+                foreach (List<Card> stack in cards)
+                {
+                    foreach (Card setcard in stack.Where(p => name.Contains(p.fixed_name()) || name.Contains(p.fixed_split_name())))
+                    {
+                        if (!string.IsNullOrEmpty(url))
+                        {
+                            setcard.imgurl = url;
+                            setcard.cmc = cmc;
+                            foreach (Card.CMCColor c in Enum.GetValues(typeof(Card.CMCColor)))
+                            {
+                                if (setcard.colors.ContainsKey(c))
+                                    continue;
+                                if (cmc > 0)
+                                {
+                                    //not a land
+                                    int count = manacost.Count(p => p == c.ToString()[0]);
+                                    if (count > 0)
+                                        setcard.colors.Add(c, count);
+                                }
+                                else
+                                {
+                                    //is a land. get its colors!
+                                    if (colorid.Any(p => p.ToString() == c.ToString()))
+                                    {
+                                        setcard.colors.Add(c, 0);
+                                    }
+                                }
+
+                            }
+                        }
+                    }
+                }
+                //check for tokens
+                if (card["all_parts"] != null)
+                    foreach (var part in card["all_parts"])
+                        if (part["component"].ToString() == "token")
+                            tokenSearchIds.Add(part["id"].ToString());
+            }
+        }
+
+        if (CommanderCard != null)
+            tokens.Add(CommanderCard);
+        //token search
+        if (tokenSearchIds.Count > 1)
+        {
+            System.Threading.Thread.Sleep(100);
+            List<Dictionary<string, string>> tokenidentifiers = new List<Dictionary<string, string>>();
+            foreach (string t in tokenSearchIds)
+            {
+                Dictionary<string, string> tok = new Dictionary<string, string>();
+                tok.Add("id", t);
+                tokenidentifiers.Add(tok);
+            }
+            Dictionary<string, object> tokenD = new Dictionary<string, object>();
+            tokenD.Add("identifiers", tokenidentifiers);
+            string jsondata = JsonConvert.SerializeObject(tokenD);
+            HttpWebRequest request = System.Net.WebRequest.Create("https://api.scryfall.com/cards/collection") as HttpWebRequest;
+            request.Method = "POST";
+            request.ContentType = "application/json";
+            ASCIIEncoding encoding = new ASCIIEncoding();
+            byte[] byte1 = encoding.GetBytes(jsondata);
+            request.ContentLength = byte1.Length;
+            Stream newStream = request.GetRequestStream();
+            newStream.Write(byte1, 0, byte1.Length);
+            List<string> notfound = new List<string>();
+            Dictionary<string, string> CardAndURL = new Dictionary<string, string>();
+            using (HttpWebResponse response = request.GetResponse() as HttpWebResponse)
+            {
+                Stream receiveStream = response.GetResponseStream();
+                StreamReader readStream = null;
+                if (response.CharacterSet == null || response.CharacterSet == "")
+                    readStream = new StreamReader(receiveStream);
+                else
+                    readStream = new StreamReader(receiveStream, Encoding.GetEncoding(response.CharacterSet));
+                string content = readStream.ReadToEnd();
+                JObject jsonResponse = JObject.Parse(content);
+                foreach (var card in jsonResponse["data"])
+                {
+                    string url = card["image_uris"]["large"].ToString();
+                    string name = card["name"].ToString();
+                    if (!tokens.Any(p => p.Nickname == name))
+                        tokens.Add(new Card()
+                        {
+                            imgurl = url,
+                            Nickname = name,
+                            //CardID = cardI++ * 100,
+                            count = 1,
+
+                        });
+
+                }
+            }
+
+        }
+        if (tokens.Count > 0)
+            cards.Add(tokens);
+        if (CommanderCard != null)
+        {
+            //CommanderCard.CardID = cardI++ * 100;
+            List<Card> commander = new List<Card>();
+            commander.Add(CommanderCard);
+            cards.Add(commander);
+        }
+
+
+        TabletopDeck final = new TabletopDeck(cards, fixlands);
+        return final;
+        string output = JsonConvert.SerializeObject(final, Formatting.Indented);
+    }
 }
 
 public class objectstate
@@ -198,3 +457,5 @@ public class objectstate
     public Dictionary<string, CardImage> CustomDeck { get; set; }
 
 }
+
+

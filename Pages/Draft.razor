@@ -27,6 +27,7 @@
 </style>
 @themesReadable
 <div style="display: @(loading ? "none" : "inline");">
+    <h3 id="error" style="color:red">@error</h3>
     <table align="center">
         <tr>
             <th style="width:800px;" align="center">
@@ -231,10 +232,19 @@
 @code {
     public async void DownloadFile()
     {
-        List<List<Card>> cards = new List<List<Card>>();
-        cards.Add(Deck);
-        cards.Add(SideBoardDeck);
-        await JSRuntime.InvokeAsync<object>("FileSaveAs", "Deck - " + DateTime.Now.ToShortDateString().Replace('/', '-') + ".json", TabletopDeck.Create(cards, fixlands));
+        try
+        {
+            List<List<Card>> cards = new List<List<Card>>();
+            cards.Add(Deck);
+            cards.Add(SideBoardDeck);
+            if (fixlands)
+                DisplayError("Starting Download with Landfix");
+            await JSRuntime.InvokeAsync<object>("FileSaveAs", "Deck - " + DateTime.Now.ToShortDateString().Replace('/', '-') + ".json", TabletopDeck.Create(cards, fixlands));
+        }
+        catch(Exception e)
+        {
+            DisplayError(e.Message + " - " + e.StackTrace);
+        }
     }
     class ColorDataItem
     {
@@ -260,6 +270,8 @@
     };
     [CascadingParameter(Name = "Pick")]
     bool Pick { get; set; }
+    [CascadingParameter(Name = "error")]
+    string error { get; set; }
     [CascadingParameter(Name = "SideBoard")]
     bool SideBoard { get; set; }
     bool themedraft = false;
@@ -363,86 +375,100 @@
         UpdateCurrentPackOrder();
     }
 
+    public void DisplayError(string err)
+    {
+        error= err;
+        StateHasChanged();
+    }
+
     public void UpdateCurrentPackOrder()
     {
         //do secondary sort... first? Logical.
-        if (sortreverse)
+        try
         {
-            switch (currentSort)
+            if (sortreverse)
             {
-                case SortTypes.Popularity:
-                    {
-                        CurrentPack = CurrentPack.OrderByDescending(p => p.rank).ToList();
-                        Deck = Deck.OrderByDescending(p => p.rank).ToList();
-                        SideBoardDeck = SideBoardDeck.OrderByDescending(p => p.rank).ToList();
-                        break;
-                    }
-                case SortTypes.Price:
-                    {
-                        CurrentPack = CurrentPack.OrderBy(p => p.price).ToList();
-                        Deck = Deck.OrderBy(p => p.price).ToList();
-                        SideBoardDeck = SideBoardDeck.OrderBy(p => p.price).ToList();
-                        break;
-                    }
-                case SortTypes.CMC:
-                    {
-                        CurrentPack = CurrentPack.OrderByDescending(p => p.cmc).ToList();
-                        Deck = Deck.OrderByDescending(p => p.cmc).ToList();
-                        SideBoardDeck = SideBoardDeck.OrderByDescending(p => p.cmc).ToList();
-                        break;
-                    }
-                case SortTypes.Rarity:
-                    {
-                        CurrentPack = CurrentPack.OrderBy(p => (int)p.rarity_enum).ToList();
-                        Deck = Deck.OrderBy(p => (int)p.rarity_enum).ToList();
-                        SideBoardDeck = SideBoardDeck.OrderBy(p => (int)p.rarity_enum).ToList();
-                        break;
-                    }
+                switch (currentSort)
+                {
+                    case SortTypes.Popularity:
+                        {
+                            CurrentPack = CurrentPack.OrderByDescending(p => p.rank).ToList();
+                            Deck = Deck.OrderByDescending(p => p.rank).ToList();
+                            SideBoardDeck = SideBoardDeck.OrderByDescending(p => p.rank).ToList();
+                            break;
+                        }
+                    case SortTypes.Price:
+                        {
+                            CurrentPack = CurrentPack.OrderBy(p => p.price).ToList();
+                            Deck = Deck.OrderBy(p => p.price).ToList();
+                            SideBoardDeck = SideBoardDeck.OrderBy(p => p.price).ToList();
+                            break;
+                        }
+                    case SortTypes.CMC:
+                        {
+                            CurrentPack = CurrentPack.OrderBy(p => p.cmc).ToList();
+                            Deck = Deck.OrderBy(p => p.cmc).ToList();
+                            SideBoardDeck = SideBoardDeck.OrderBy(p => p.cmc).ToList();
+                            //throw new Exception("Testing Errors!");
+                            break;
+                        }
+                    case SortTypes.Rarity:
+                        {
+                            CurrentPack = CurrentPack.OrderBy(p => (int)p.rarity_enum).ToList();
+                            Deck = Deck.OrderBy(p => (int)p.rarity_enum).ToList();
+                            SideBoardDeck = SideBoardDeck.OrderBy(p => (int)p.rarity_enum).ToList();
+                            break;
+                        }
+                }
             }
-        }
-        else
-        {
-            switch (currentSort)
+            else
             {
-                case SortTypes.Popularity:
-                    {
-                        CurrentPack = CurrentPack.OrderBy(p => p.rank).ToList();
-                        Deck = Deck.OrderBy(p => p.rank).ToList();
-                        SideBoardDeck = SideBoardDeck.OrderBy(p => p.rank).ToList();
-                        break;
-                    }
-                case SortTypes.Price:
-                    {
-                        CurrentPack = CurrentPack.OrderByDescending(p => p.price).ToList();
-                        Deck = Deck.OrderByDescending(p => p.price).ToList();
-                        SideBoardDeck = SideBoardDeck.OrderByDescending(p => p.price).ToList();
-                        break;
-                    }
-                case SortTypes.CMC:
-                    {
-                        CurrentPack = CurrentPack.OrderBy(p => p.cmc).ToList();
-                        Deck = Deck.OrderBy(p => p.cmc).ToList();
-                        SideBoardDeck = SideBoardDeck.OrderBy(p => p.cmc).ToList();
-
-                        break;
-                    }
-                case SortTypes.Rarity:
-                    {
-                        CurrentPack = CurrentPack.OrderByDescending(p => (int)p.rarity_enum).ToList();
-                        Deck = Deck.OrderByDescending(p => (int)p.rarity_enum).ToList();
-                        SideBoardDeck = SideBoardDeck.OrderByDescending(p => (int)p.rarity_enum).ToList();
-                        break;
-                    }
+                switch (currentSort)
+                {
+                    case SortTypes.Popularity:
+                        {
+                            CurrentPack = CurrentPack.OrderBy(p => p.rank).ToList();
+                            Deck = Deck.OrderBy(p => p.rank).ToList();
+                            SideBoardDeck = SideBoardDeck.OrderBy(p => p.rank).ToList();
+                            break;
+                        }
+                    case SortTypes.Price:
+                        {
+                            CurrentPack = CurrentPack.OrderByDescending(p => p.price).ToList();
+                            Deck = Deck.OrderByDescending(p => p.price).ToList();
+                            SideBoardDeck = SideBoardDeck.OrderByDescending(p => p.price).ToList();
+                            break;
+                        }
+                    case SortTypes.CMC:
+                        {
+                            CurrentPack = CurrentPack.OrderByDescending(p => p.cmc).ToList();
+                            Deck = Deck.OrderByDescending(p => p.cmc).ToList();
+                            SideBoardDeck = SideBoardDeck.OrderByDescending(p => p.cmc).ToList();
+                            //throw new Exception("Testing Errors!");
+                            break;
+                        }
+                    case SortTypes.Rarity:
+                        {
+                            CurrentPack = CurrentPack.OrderByDescending(p => (int)p.rarity_enum).ToList();
+                            Deck = Deck.OrderByDescending(p => (int)p.rarity_enum).ToList();
+                            SideBoardDeck = SideBoardDeck.OrderByDescending(p => (int)p.rarity_enum).ToList();
+                            break;
+                        }
+                }
             }
-        }
 
-        if (orderColors.Count > 0)
-        {
-            CurrentPack = CurrentPack.OrderByDescending(p => p.colors.Keys.ToList().All(x => orderColors.Contains(x))).ToList();
-            Deck = Deck.OrderByDescending(p => p.colors.Keys.ToList().All(x => orderColors.Contains(x))).ToList();
-            SideBoardDeck = SideBoardDeck.OrderByDescending(p => p.colors.Keys.ToList().All(x => orderColors.Contains(x))).ToList();
+            if (orderColors.Count > 0)
+            {
+                CurrentPack = CurrentPack.OrderByDescending(p => p.colors.Keys.ToList().All(x => orderColors.Contains(x))).ToList();
+                Deck = Deck.OrderByDescending(p => p.colors.Keys.ToList().All(x => orderColors.Contains(x))).ToList();
+                SideBoardDeck = SideBoardDeck.OrderByDescending(p => p.colors.Keys.ToList().All(x => orderColors.Contains(x))).ToList();
+            }
+            StateHasChanged();
         }
-        StateHasChanged();
+        catch (Exception e)
+        {
+            DisplayError(e.Message + " - " + e.StackTrace);
+        }
     }
 
     async void Submit()
@@ -676,14 +702,8 @@
     }
     public List<Card> RemoveBannedCards(List<Card> cubeCards)
     {
-
-        int count = cubeCards.Count();
-        cubeCards = cubeCards.Where(p=>p.Nickname.ToLower() != "urza, lord high").ToList();
-        cubeCards = cubeCards.Where(p => p.Nickname.ToLower() != "cyclonic rift").ToList();
-        cubeCards = cubeCards.Where(p => p.Nickname.ToLower() != "fierce guardianship").ToList();
-        cubeCards = cubeCards.Where(p => p.Nickname.ToLower() != "deadly rollick").ToList();
-        cubeCards = cubeCards.Where(p => p.Nickname.ToLower() != "deflecting swat").ToList();
-        cubeCards = cubeCards.Where(p => p.Nickname.ToLower() != "flawless maneuver").ToList();
+        List<string> bannedcards = new List<string>() { "urza, lord high", "cyclonic rift", "fierce guardianship", "deadly rollick", "deflecting swat", "flawless maneuver" };
+        cubeCards = cubeCards.Where(p => !bannedcards.Any(x => x.ToLower() == p.Nickname.ToLower())).ToList();
         return cubeCards;
     }
     public void MoveToSideBoard(int i)
@@ -716,76 +736,83 @@
 
     public void SelectCards()
     {
-        Card pick1 = CurrentPack[selectedCards[0]];
-        Card pick2 = CurrentPack[selectedCards[1]];
-        Deck.Add(pick1);
-        Deck.Add(pick2);
-        allPacks[packSelection][currentPackCount].Remove(pick1);
-        allPacks[packSelection][currentPackCount].Remove(pick2);
-        confirmButton = "hidden";
-        buttonStyle[selectedCards[0]] = styleDefault;
-        buttonStyle[selectedCards[1]] = styleDefault;
-        selectedCards.Clear();
-
-        //richTextBox1.Text = string.Join("\n", Deck.Select(p => p.Nickname));
-
-        //code to go through each pack for bot picks
-        int botNumber = 0;
-        for (int i = 0; i < 8; i++)
+        try
         {
-            List<Card> pack = allPacks[packSelection][i];
-            if (pack == allPacks[packSelection][currentPackCount])
-                continue;
-            /*Card botpick1 = pack.OrderBy(p => p.rank).ToList()[0];
-            Card botpick2 = pack.OrderBy(p => p.rank).ToList()[1];
-            pack.Remove(botpick1);
-            pack.Remove(botpick2);*/
-            if (debug)
+            Card pick1 = CurrentPack[selectedCards[0]];
+            Card pick2 = CurrentPack[selectedCards[1]];
+            Deck.Add(pick1);
+            Deck.Add(pick2);
+            allPacks[packSelection][currentPackCount].Remove(pick1);
+            allPacks[packSelection][currentPackCount].Remove(pick2);
+            confirmButton = "hidden";
+            buttonStyle[selectedCards[0]] = styleDefault;
+            buttonStyle[selectedCards[1]] = styleDefault;
+            selectedCards.Clear();
+
+            //richTextBox1.Text = string.Join("\n", Deck.Select(p => p.Nickname));
+
+            //code to go through each pack for bot picks
+            int botNumber = 0;
+            for (int i = 0; i < 8; i++)
             {
-                if (BotCommanders[botNumber] != null)
-                    Console.WriteLine("Bot: Commander:" + BotCommanders[botNumber].Nickname + " Colors:" + string.Join(",", BotCommanders[botNumber].colorIdentity.Where(p => p.Value).Select(p => p.Key)));
-                else
-                    Console.WriteLine("Bot: No Commander Yet");
-                Console.WriteLine("Options: ");
-                string s = "";
-                foreach (Card card in pack)
-                    s += card.Nickname + " : " + string.Join(",", card.colorIdentity.Where(p => p.Value).Select(p => p.Key)) + ", ";
-                Console.WriteLine(s);
-            }
-            for (int pickNumber = 0; pickNumber < 2; pickNumber++)
-                BotPicks(botNumber, packSelection, pack);
-            botNumber++;
-        }
-        currentPackCount++;
-        if (currentPackCount == 8)
-            currentPackCount = 0;
-        CurrentPack = new List<Card>();
-        StateHasChanged();
-        CurrentPack = allPacks[packSelection][currentPackCount];
-        if (CurrentPack.Count() == 0)
-        {
-            packSelection++;
-            if (packSelection < 3)
-                CurrentPack = allPacks[packSelection][currentPackCount];
-            else
-            {
+                List<Card> pack = allPacks[packSelection][i];
+                if (pack == allPacks[packSelection][currentPackCount])
+                    continue;
+                /*Card botpick1 = pack.OrderBy(p => p.rank).ToList()[0];
+                Card botpick2 = pack.OrderBy(p => p.rank).ToList()[1];
+                pack.Remove(botpick1);
+                pack.Remove(botpick2);*/
                 if (debug)
                 {
-                    Console.WriteLine("FINISH");
-                    for (int i = 0; i < 7; i++)
+                    if (BotCommanders[botNumber] != null)
+                        Console.WriteLine("Bot: Commander:" + BotCommanders[botNumber].Nickname + " Colors:" + string.Join(",", BotCommanders[botNumber].colorIdentity.Where(p => p.Value).Select(p => p.Key)));
+                    else
+                        Console.WriteLine("Bot: No Commander Yet");
+                    Console.WriteLine("Options: ");
+                    string s = "";
+                    foreach (Card card in pack)
+                        s += card.Nickname + " : " + string.Join(",", card.colorIdentity.Where(p => p.Value).Select(p => p.Key)) + ", ";
+                    Console.WriteLine(s);
+                }
+                for (int pickNumber = 0; pickNumber < 2; pickNumber++)
+                    BotPicks(botNumber, packSelection, pack);
+                botNumber++;
+            }
+            currentPackCount++;
+            if (currentPackCount == 8)
+                currentPackCount = 0;
+            CurrentPack = new List<Card>();
+            StateHasChanged();
+            CurrentPack = allPacks[packSelection][currentPackCount];
+            if (CurrentPack.Count() == 0)
+            {
+                packSelection++;
+                if (packSelection < 3)
+                    CurrentPack = allPacks[packSelection][currentPackCount];
+                else
+                {
+                    if (debug)
                     {
-                        Console.WriteLine("Bot: Commander:" + BotCommanders[i].Nickname + " Colors:" + string.Join(",", BotCommanders[i].colorIdentity.Where(p => p.Value).Select(p => p.Key)));
-                        string s = "";
-                        foreach (Card card in BotCards[i])
-                            s += card.Nickname + " : " + string.Join(",", card.colorIdentity.Where(p => p.Value).Select(p => p.Key)) + ", ";
-                        Console.WriteLine(s);
+                        Console.WriteLine("FINISH");
+                        for (int i = 0; i < 7; i++)
+                        {
+                            Console.WriteLine("Bot: Commander:" + BotCommanders[i].Nickname + " Colors:" + string.Join(",", BotCommanders[i].colorIdentity.Where(p => p.Value).Select(p => p.Key)));
+                            string s = "";
+                            foreach (Card card in BotCards[i])
+                                s += card.Nickname + " : " + string.Join(",", card.colorIdentity.Where(p => p.Value).Select(p => p.Key)) + ", ";
+                            Console.WriteLine(s);
+                        }
                     }
                 }
             }
+            UpdateGraphs();
+            UpdateCurrentPackOrder();
+            StateHasChanged();
         }
-        UpdateGraphs();
-        UpdateCurrentPackOrder();
-        StateHasChanged();
+        catch (Exception e)
+        {
+            DisplayError(e.Message + " - " + e.StackTrace);
+        }
     }
     public void UpdateGraphs()
     {
