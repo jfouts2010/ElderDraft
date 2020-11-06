@@ -74,7 +74,7 @@ namespace ElderDraft
             int landsneeded = decksize - deck.Sum(p => p.count);
             List<Dictionary<Card.CMCColor, int>> landcombos = GetAllColorCombinations(colors, landsneeded);
 
-            landcombos = landcombos.Where(p => GetLandsDifference(initiallands, p) < .5m * landsneeded).ToList();
+            landcombos = landcombos.Where(p => GetLandsDifference(initiallands, p) < .3m * landsneeded).ToList();
             Dictionary<Card.CMCColor, int> bestcombo = new Dictionary<Card.CMCColor, int>();
             double bestscore = double.MinValue;
             foreach (Dictionary<Card.CMCColor, int> landset in landcombos)
@@ -86,6 +86,7 @@ namespace ElderDraft
                 {
                     bestcombo = landset;
                     bestscore = deckscore;
+                    Console.WriteLine("New Best Set: " + bestscore + "  " + string.Join(" ", bestcombo.Select(p => (p.Key + "-" + p.Value))));
                 }
 
             }
@@ -298,7 +299,7 @@ namespace ElderDraft
             List<Card> expandedDeck = ExpandDeck(deck);
             double cumulativescore = 0;
             int cmcmax = deck.Select(p => p.cmc).Max();
-            for (int i = 0; i < 1000; i++)
+            for (int i = 0; i < 250; i++)
             {
                 List<Card> landsAvail = new List<Card>();
                 List<Card> currentHand = new List<Card>();
