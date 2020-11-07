@@ -664,28 +664,44 @@
                       if (c.type.ToLower().Contains("land"))
                           lands++;
                   }*/
-                for (int l = 0; l < 9; l++)
+                if (themedraft)
                 {
-                    List<Card> availCards = CubeCards.Where(p => !packCards.Select(p => p.Nickname).ToList().Contains(p.Nickname)).ToList();
-                    Card c = availCards[r.Next(0, availCards.Count())];
+                    for (int l = 0; l < 9; l++)
+                    {
+                        List<Card> availCards = CubeCards.Where(p => !packCards.Select(p => p.Nickname).ToList().Contains(p.Nickname)).ToList();
+                        Card c = availCards[r.Next(0, availCards.Count())];
 
-                    packCards.Add(c);
-                    if (c.type.ToLower().Contains("land"))
-                        lands++;
+                        packCards.Add(c);
+                        if (c.type.ToLower().Contains("land"))
+                            lands++;
 
+                    }
+                    for (int l = 0; l < 9; l++)
+                    {
+                        List<string> TopCards = JsonConvert.DeserializeObject<List<string>>(new Data().TopCards);
+
+                        List<Card> availCards = CubeCards.Where(p => !packCards.Select(p => p.Nickname).ToList().Contains(p.Nickname)).ToList();
+                        availCards = availCards.Where(p => !TopCards.Contains(p.Nickname)).ToList();
+                        Card c = availCards[r.Next(0, availCards.Count())];
+
+                        packCards.Add(c);
+                        if (c.type.ToLower().Contains("land"))
+                            lands++;
+
+                    }
                 }
-                for (int l = 0; l < 9; l++)
+                else
                 {
-                    List<string> TopCards = JsonConvert.DeserializeObject<List<string>>(new Data().TopCards);
+                    for (int l = 0; l < 18; l++)
+                    {
+                        List<Card> availCards = CubeCards.Where(p => !packCards.Select(p => p.Nickname).ToList().Contains(p.Nickname)).ToList();
+                        Card c = availCards[r.Next(0, availCards.Count())];
 
-                    List<Card> availCards = CubeCards.Where(p => !packCards.Select(p => p.Nickname).ToList().Contains(p.Nickname)).ToList();
-                    availCards = availCards.Where(p => !TopCards.Contains(p.Nickname)).ToList();
-                    Card c = availCards[r.Next(0, availCards.Count())];
+                        packCards.Add(c);
+                        if (c.type.ToLower().Contains("land"))
+                            lands++;
 
-                    packCards.Add(c);
-                    if (c.type.ToLower().Contains("land"))
-                        lands++;
-
+                    }
                 }
                 Packs.Add(packCards);
                 cardsInPacks.AddRange(packCards);
@@ -923,11 +939,11 @@
         try
         {
             int rank = int.Parse(card["edhrec_rank"].ToString());
-            if (rank > 8000)
-                return null;
+            /*if (rank > 8000)
+                return null;*/
             setcard.rank = rank;
         }
-        catch { return null; }
+        catch {  }
         string url = "";
         string lowresurl = "";
         string name = card["name"].ToString();
