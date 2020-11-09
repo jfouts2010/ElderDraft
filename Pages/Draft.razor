@@ -724,17 +724,33 @@
     }
     public void MoveToSideBoard(int i)
     {
-        Card card = Deck[i];
-        Deck.Remove(card);
-        SideBoardDeck.Add(card);
-        UpdateGraphs();
+        try
+        {
+            Card card = Deck[i];
+            Deck.Remove(card);
+            SideBoardDeck.Add(card);
+            UpdateGraphs();
+        }
+        catch( Exception e)
+        {
+            DisplayError(e.Message + " " + e.StackTrace);
+        }
     }
     public void MoveToDeck(int i)
     {
-        Card card = SideBoardDeck[i];
-        SideBoardDeck.Remove(card);
-        Deck.Add(card);
-        UpdateGraphs();
+        try
+        {
+
+
+            Card card = SideBoardDeck[i];
+            SideBoardDeck.Remove(card);
+            Deck.Add(card);
+            UpdateGraphs();
+        }
+        catch (Exception e)
+        {
+            DisplayError(e.Message + " " + e.StackTrace);
+        }
     }
     public void GoToDeck()
     {
