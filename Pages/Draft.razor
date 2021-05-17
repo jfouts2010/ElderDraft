@@ -289,6 +289,7 @@
     List<int> selectedCards = new List<int>();
     bool fixlands = false;
     List<Card.CMCColor> orderColors = new List<Card.CMCColor>();
+    
     public SortTypes currentSort = SortTypes.Popularity;
     public bool sortreverse = false;
     public bool debug = false;
@@ -459,9 +460,9 @@
 
             if (orderColors.Count > 0)
             {
-                CurrentPack = CurrentPack.OrderByDescending(p => p.colors.Keys.ToList().All(x => orderColors.Contains(x))).ToList();
-                Deck = Deck.OrderByDescending(p => p.colors.Keys.ToList().All(x => orderColors.Contains(x))).ToList();
-                SideBoardDeck = SideBoardDeck.OrderByDescending(p => p.colors.Keys.ToList().All(x => orderColors.Contains(x))).ToList();
+                CurrentPack = CurrentPack.OrderByDescending(p => p.colorIdentity.Where(p => p.Value && p.Key != Card.CMCColor.C).All(x => orderColors.Contains(x.Key))).ToList();
+                Deck = Deck.OrderByDescending(p => p.colorIdentity.Where(p => p.Value).All(x => orderColors.Contains(x.Key))).ToList();
+                SideBoardDeck = SideBoardDeck.OrderByDescending(p => p.colorIdentity.Where(p => p.Value).All(x => orderColors.Contains(x.Key))).ToList();
             }
             StateHasChanged();
         }
@@ -718,7 +719,7 @@
     }
     public List<Card> RemoveBannedCards(List<Card> cubeCards)
     {
-        List<string> bannedcards = new List<string>() { "urza, lord high", "cyclonic rift", "fierce guardianship", "deadly rollick", "deflecting swat", "flawless maneuver" };
+        List<string> bannedcards = new List<string>() { "urza, lord high artificer", "cyclonic rift", "fierce guardianship", "deadly rollick", "deflecting swat", "flawless maneuver" };
         cubeCards = cubeCards.Where(p => !bannedcards.Any(x => x.ToLower() == p.Nickname.ToLower())).ToList();
         return cubeCards;
     }
@@ -1031,32 +1032,42 @@
         setcard.colorIdentity = new Dictionary<Card.CMCColor, bool>();
         foreach (Card.CMCColor c in Enum.GetValues(typeof(Card.CMCColor)))
         {
-
-            if (setcard.colors.ContainsKey(c))
-                continue;
-            if (cmc > 0)
+            try
             {
-                //not a land
-                int count = manacost.Count(p => p == c.ToString()[0]);
-                if (count > 0)
-                    setcard.colors.Add(c, count);
-                if (c == Card.CMCColor.C)
-                    setcard.colorIdentity.Add(c, true);
-                else
-                    setcard.colorIdentity.Add(c, count > 0);
-            }
-            else
-            {
-                //is a land. get its colors!
-                if (colorid.Any(p => p.ToString() == c.ToString()))
+                if (setcard.colors.ContainsKey(c))
+                    continue;
+                if (cmc > 0)
                 {
-                    setcard.colors.Add(c, 0);
+                    //not a land
+                    int count = manacost.Count(p => p == c.ToString()[0]);
+                    bool identcount = colorid.Count > 0 ? colorid.Any(p => p.ToString()[0] == c.ToString()[0]) : false;
+                    if (count > 0)
+                        setcard.colors.Add(c, count);
+                    if (c == Card.CMCColor.C)
+                        setcard.colorIdentity.Add(c, true);
+                    else
+                        setcard.colorIdentity.Add(c, identcount);
                 }
-                if (c == Card.CMCColor.C)
-                    setcard.colorIdentity.Add(c, true);
+                else
+                {
+                    //is a land. get its colors!
+                    if (colorid.Any(p => p.ToString() == c.ToString()))
+                    {
+                        setcard.colors.Add(c, 0);
+                    }
+                    if (c == Card.CMCColor.C)
+                        setcard.colorIdentity.Add(c, true);
+                }
+            }
+            catch(Exception e)
+            {
+                string x = e.Message;
+                DisplayError(e.ToString());
+
             }
         }
         return setcard;
+
     }
     public List<Card> CommanderClassic()
     {
@@ -1090,6 +1101,7 @@
     }
     public void BotPicks(int botNumber, int packNumber, List<Card> Pack)
     {
+        DisplayError(string.Join(", ", BotCommanders.Where(p => p != null).Select(p => p.ToString())));
         Console.WriteLine("bot pick: " + botNumber);
         Card commander = BotCommanders[botNumber];
         List<Card> bcards = BotCards[botNumber];
@@ -1142,7 +1154,7 @@
         {
             //ok choose for in colors
             List<Card.CMCColor> commanderColors = commander.colorIdentity.Where(p => p.Value).Select(p => p.Key).ToList();
-            List<Card> commanderCards = Pack.Where(p => p.colorIdentity.Any(p => commanderColors.Contains(p.Key))).ToList();
+            List<Card> commanderCards = Pack.Where(p => p.colorIdentity.All(p => p.Value == false || commanderColors.Contains(p.Key))).ToList();
             foreach (Card cc in commanderCards.OrderBy(p => p.rank))
             {
                 List<Card.CMCColor> cardColors = cc.colorIdentity.Where(p => p.Value).Select(p => p.Key).ToList();
