@@ -2,7 +2,7 @@
 @inject NavigationManager navManager
 
     <div style="text-align: center;">
-        <button class="btn btn-primary" @onclick="Set">Set Draft</button>
+        <button class="btn btn-primary" @onclick="Set">Commander Legends Draft</button>
         <br />
         <br />
         <button class="btn btn-primary" @onclick="Theme">Theme Draft</button>
@@ -11,10 +11,10 @@
 {
         public void Set()
         {
-            navManager.NavigateTo(navManager.BaseUri + "/Set");
+            navManager.NavigateTo(navManager.BaseUri + "Draft?query=-type%3Abasic%20(set%3Acmr)&themeddraft=False");
         }
         public void Theme()
         {
-            navManager.NavigateTo(navManager.BaseUri + "/ThemeTribal");
+            navManager.NavigateTo(navManager.BaseUri + "ThemeTribal");
         }
     }

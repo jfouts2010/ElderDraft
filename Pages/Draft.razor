@@ -241,7 +241,7 @@
                 DisplayError("Starting Download with Landfix");
             await JSRuntime.InvokeAsync<object>("FileSaveAs", "Deck - " + DateTime.Now.ToShortDateString().Replace('/', '-') + ".json", TabletopDeck.Create(cards, fixlands));
         }
-        catch(Exception e)
+        catch (Exception e)
         {
             DisplayError(e.Message + " - " + e.StackTrace);
         }
@@ -322,63 +322,92 @@
     }
     Task Startup()
     {
-        var uri = navManager.ToAbsoluteUri(navManager.Uri);
-        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("query", out var param))
+        try
         {
-            setQuery = param.First();
+            var uri = navManager.ToAbsoluteUri(navManager.Uri);
+            if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("query", out var param))
+            {
+                setQuery = param.First();
+            }
+            if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("themeddraft", out var param1))
+            {
+                themedraft = bool.Parse(param1.First());
+            }
+            for (int i = 0; i < 20; i++)
+            {
+                buttonStyle.Add(i, styleDefault);
+            }
+            return Task.CompletedTask;
         }
-        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("themeddraft", out var param1))
+        catch
         {
-            themedraft = bool.Parse(param1.First());
+            return Task.CompletedTask;
+            Console.WriteLine("Startup Error");
         }
-        for (int i = 0; i < 20; i++)
-        {
-            buttonStyle.Add(i, styleDefault);
-        }
-        return Task.CompletedTask;
     }
 
     public void SelectCard(MouseEventArgs e, int cardNumber)
     {
-        if (selectedCards.Contains(cardNumber))
+        try
         {
-            selectedCards.Remove(cardNumber);
-            buttonStyle[cardNumber] = styleDefault;
+            if (selectedCards.Contains(cardNumber))
+            {
+                selectedCards.Remove(cardNumber);
+                buttonStyle[cardNumber] = styleDefault;
+            }
+            else if (selectedCards.Count < 2)
+            {
+                selectedCards.Add(cardNumber);
+                buttonStyle[cardNumber] = styleSelected;
+            }
+            if (selectedCards.Count == 2)
+                confirmButton = "visible";
+            else
+                confirmButton = "hidden";
         }
-        else if (selectedCards.Count < 2)
+        catch
         {
-            selectedCards.Add(cardNumber);
-            buttonStyle[cardNumber] = styleSelected;
+            Console.WriteLine("SelectCard Error");
         }
-        if (selectedCards.Count == 2)
-            confirmButton = "visible";
-        else
-            confirmButton = "hidden";
     }
 
     public void ChangeSortColor(ChangeEventArgs e, Card.CMCColor color)
     {
-        if (orderColors.Contains(color))
-            orderColors.Remove(color);
-        else
-            orderColors.Add(color);
-        UpdateCurrentPackOrder();
+        try
+        {
+            if (orderColors.Contains(color))
+                orderColors.Remove(color);
+            else
+                orderColors.Add(color);
+            UpdateCurrentPackOrder();
+        }
+        catch
+        {
+            Console.WriteLine("ChangeSortColor Error");
+        }
     }
 
     public void ChangeSortOrder(ChangeEventArgs e)
     {
-        SortTypes newsort = (SortTypes)Enum.Parse(typeof(SortTypes), e.Value.ToString());
-        if (newsort == currentSort)
-            sortreverse = !sortreverse;
-        else
-            sortreverse = false;
-        currentSort = newsort;
-        UpdateCurrentPackOrder();
+        try
+        {
+            SortTypes newsort = (SortTypes)Enum.Parse(typeof(SortTypes), e.Value.ToString());
+            if (newsort == currentSort)
+                sortreverse = !sortreverse;
+            else
+                sortreverse = false;
+            currentSort = newsort;
+            UpdateCurrentPackOrder();
+        }
+        catch
+        {
+            Console.WriteLine("ChangeSortOrder Error");
+        }
     }
 
     public void DisplayError(string err)
     {
-        error= err;
+        error = err;
         StateHasChanged();
     }
 
@@ -474,248 +503,255 @@
 
     async void Submit()
     {
-        int page = 1;
-        List<Card> CubeCards = new List<Card>();
-
-        if (!themedraft)
+        try
         {
-            while (true)
+            int page = 1;
+            List<Card> CubeCards = new List<Card>();
+
+            if (!themedraft)
             {
-                string query = "https://api.scryfall.com/cards/search?q=" + HttpUtility.UrlEncode(setQuery) + "&order=edhrec&page=" + page;
+                while (true)
                 {
-                    try
+                    string query = "https://api.scryfall.com/cards/search?q=" + HttpUtility.UrlEncode(setQuery) + "&order=edhrec&page=" + page;
                     {
-                        string content = await Http.GetStringAsync(query);
-                        JObject jsonResponse = JObject.Parse(content);
-                        foreach (JToken card in jsonResponse["data"])
+                        try
                         {
-                            Card newCard = JsonToCard(card);
-                            if (newCard != null)
-                                CubeCards.Add(newCard);
+                            string content = await Http.GetStringAsync(query);
+                            JObject jsonResponse = JObject.Parse(content);
+                            foreach (JToken card in jsonResponse["data"])
+                            {
+                                Card newCard = JsonToCard(card);
+                                if (newCard != null)
+                                    CubeCards.Add(newCard);
+                            }
+                            progress = (int)((decimal)CubeCards.Count / decimal.Parse(jsonResponse["total_cards"].ToString()) * 100M);
+                            StateHasChanged();
+                            if (jsonResponse["data"].Count() < 175)
+                                break;
                         }
-                        progress = (int)((decimal)CubeCards.Count / decimal.Parse(jsonResponse["total_cards"].ToString()) * 100M);
-                        StateHasChanged();
-                        if (jsonResponse["data"].Count() < 175)
-                            break;
+                        catch (Exception e)
+                        {
+                            await JSRuntime.InvokeAsync<object>("Alert", e.Message);
+                        }
+
+                        page++;
                     }
-                    catch (Exception e)
+                }
+            }
+            else
+            {
+                List<Theme> badThemes = new List<Theme>();
+                badThemes = JsonConvert.DeserializeObject<List<Theme>>(new Data().ThemesString);
+                badThemes.AddRange(JsonConvert.DeserializeObject<List<Theme>>(new Data().TribeString));
+                List<Theme> Themes = new List<Theme>();
+                foreach (Theme badtheme in badThemes)
+                {
+                    if (!Themes.Any(p => p.name == badtheme.name))
+                        Themes.Add(badtheme);
+                }
+                List<string> cardnames = new List<string>();
+                List<string> themes = setQuery.Split(',').ToList();
+                themesReadable = string.Join(',', themes.Select(p => p.Replace("/themes/", "").Replace("/tribes/", "")));
+                int count = 1;
+                foreach (string themeName in themes)
+                {
+                    Theme t = Themes.First(p => p.name == themeName);
+                    //pull from github
+                    var cli = new HttpClient();
+                    var asdf = await cli.GetAsync("https://raw.githubusercontent.com/thatsgerman/ElderDraft/master/big_data/" + themeName.Replace("/themes/", "").Replace("/tribes/", ""));
+                    string content = await asdf.Content.ReadAsStringAsync();
+                    JObject jsonResponse = JObject.Parse(content);
+                    foreach (var card in jsonResponse)
                     {
-                        await JSRuntime.InvokeAsync<object>("Alert", e.Message);
+                        string cardString = card.Value.ToString();
+                        JToken cardjtokenConvert = JsonConvert.DeserializeObject<JToken>(cardString);
+                        Card newCard = JsonToCard(cardjtokenConvert);
+                        if (newCard != null)
+                            CubeCards.Add(newCard);
                     }
-
-                    page++;
+                    progress = (int)(((decimal)count++ / (decimal)themes.Count()) * 100M);
+                    StateHasChanged();
+                    //cardnames.AddRange(t.cards);
                 }
-            }
-        }
-        else
-        {
-            List<Theme> badThemes = new List<Theme>();
-            badThemes = JsonConvert.DeserializeObject<List<Theme>>(new Data().ThemesString);
-            badThemes.AddRange(JsonConvert.DeserializeObject<List<Theme>>(new Data().TribeString));
-            List<Theme> Themes = new List<Theme>();
-            foreach (Theme badtheme in badThemes)
-            {
-                if (!Themes.Any(p => p.name == badtheme.name))
-                    Themes.Add(badtheme);
-            }
-            List<string> cardnames = new List<string>();
-            List<string> themes = setQuery.Split(',').ToList();
-            themesReadable = string.Join(',', themes.Select(p => p.Replace("/themes/", "").Replace("/tribes/", "")));
-            int count = 1;
-            foreach (string themeName in themes)
-            {
-                Theme t = Themes.First(p => p.name == themeName);
-                //pull from github
-                var cli = new HttpClient();
-                var asdf = await cli.GetAsync("https://raw.githubusercontent.com/thatsgerman/ElderDraft/master/big_data/" + themeName.Replace("/themes/", "").Replace("/tribes/", ""));
-                string content = await asdf.Content.ReadAsStringAsync();
-                JObject jsonResponse = JObject.Parse(content);
-                foreach (var card in jsonResponse)
-                {
-                    string cardString = card.Value.ToString();
-                    JToken cardjtokenConvert = JsonConvert.DeserializeObject<JToken>(cardString);
-                    Card newCard = JsonToCard(cardjtokenConvert);
-                    if (newCard != null)
-                        CubeCards.Add(newCard);
-                }
-                progress = (int)(((decimal)count++ / (decimal)themes.Count()) * 100M);
-                StateHasChanged();
-                //cardnames.AddRange(t.cards);
-            }
 
-            /* List<Call> calls = new List<Call>();
-             Call c = new Call();
-             c.identifiers = new List<Identifier>();
-             foreach (string cardLine in cardnames.Distinct().ToList())
-             {
-                 Identifier i = new Identifier();
-                 i.name = cardLine;
-                 if (c.identifiers.Count == 75)
+                /* List<Call> calls = new List<Call>();
+                 Call c = new Call();
+                 c.identifiers = new List<Identifier>();
+                 foreach (string cardLine in cardnames.Distinct().ToList())
                  {
-                     calls.Add(c);
-                     c = new Call();
-                     c.identifiers = new List<Identifier>();
-                     c.identifiers.Add(i);
+                     Identifier i = new Identifier();
+                     i.name = cardLine;
+                     if (c.identifiers.Count == 75)
+                     {
+                         calls.Add(c);
+                         c = new Call();
+                         c.identifiers = new List<Identifier>();
+                         c.identifiers.Add(i);
+                     }
+                     else
+                         c.identifiers.Add(i);
                  }
-                 else
-                     c.identifiers.Add(i);
-             }
-             int callnumber = 0;
-             while (callnumber < calls.Count)
-             {
-                 var cli = new HttpClient();
-                 string content = "";
-                 string jsondata1 = JsonConvert.SerializeObject(calls[callnumber]);
-                 callnumber++;
-                 var buffer = System.Text.Encoding.UTF8.GetBytes(jsondata1);
-                 var byteContent = new ByteArrayContent(buffer);
-                 byteContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-                 var asdf = await cli.PostAsync("https://api.scryfall.com/cards/collection", byteContent);
-                 content = await asdf.Content.ReadAsStringAsync();
-                 JObject jsonResponse = JObject.Parse(content);
-                 foreach (JToken card in jsonResponse["data"])
+                 int callnumber = 0;
+                 while (callnumber < calls.Count)
                  {
-                     Card newCard = JsonToCard(card);
-                     if (newCard != null)
-                         CubeCards.Add(newCard);
-                 }
-                 progress = (int)(((decimal)callnumber * 75M / (decimal)cardnames.Distinct().Count()) * 100M);
-                 StateHasChanged();
-                 page++;
-             }*/
-        }
-        //CubeCards.AddRange(CommanderClassic());
-        CubeCards = RemoveBannedCards(CubeCards);
-        for (int i2 = 0; i2 < 3; i2++)
-        {
-            /*List<Card> Myth = CubeCards.Where(p => p.rarity == "mythic").ToList();
-            List<Card> rare = CubeCards.Where(p => p.rarity == "rare").ToList();
-            List<Card> uncom = CubeCards.Where(p => p.rarity == "uncommon").ToList();
-            List<Card> common = CubeCards.Where(p => p.rarity == "common").ToList();*/
-            List<Card> legendaries = CubeCards.Where(p => p.type.Contains("Legendary") && p.type.Contains("Creature")).ToList();
-            //List<Card> partners = AddPartners();
-            //legendaries.AddRange(partners);
-            Random r = new Random();
-            List<List<Card>> Packs = new List<List<Card>>();
-            List<Card> cardsInPacks = new List<Card>();
-
-            for (int i = 0; i < 8; i++)
+                     var cli = new HttpClient();
+                     string content = "";
+                     string jsondata1 = JsonConvert.SerializeObject(calls[callnumber]);
+                     callnumber++;
+                     var buffer = System.Text.Encoding.UTF8.GetBytes(jsondata1);
+                     var byteContent = new ByteArrayContent(buffer);
+                     byteContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+                     var asdf = await cli.PostAsync("https://api.scryfall.com/cards/collection", byteContent);
+                     content = await asdf.Content.ReadAsStringAsync();
+                     JObject jsonResponse = JObject.Parse(content);
+                     foreach (JToken card in jsonResponse["data"])
+                     {
+                         Card newCard = JsonToCard(card);
+                         if (newCard != null)
+                             CubeCards.Add(newCard);
+                     }
+                     progress = (int)(((decimal)callnumber * 75M / (decimal)cardnames.Distinct().Count()) * 100M);
+                     StateHasChanged();
+                     page++;
+                 }*/
+            }
+            //CubeCards.AddRange(CommanderClassic());
+            CubeCards = RemoveBannedCards(CubeCards);
+            for (int i2 = 0; i2 < 3; i2++)
             {
-                List<Card> packCards = new List<Card>();
-                int lands = 0;
-                bool banLands = lands >= 4;
-                //legendaries
-                for (int l = 0; l < 2; l++)
+                /*List<Card> Myth = CubeCards.Where(p => p.rarity == "mythic").ToList();
+                List<Card> rare = CubeCards.Where(p => p.rarity == "rare").ToList();
+                List<Card> uncom = CubeCards.Where(p => p.rarity == "uncommon").ToList();
+                List<Card> common = CubeCards.Where(p => p.rarity == "common").ToList();*/
+                List<Card> legendaries = CubeCards.Where(p => p.type.Contains("Legendary") && p.type.Contains("Creature")).ToList();
+                //List<Card> partners = AddPartners();
+                //legendaries.AddRange(partners);
+                Random r = new Random();
+                List<List<Card>> Packs = new List<List<Card>>();
+                List<Card> cardsInPacks = new List<Card>();
+
+                for (int i = 0; i < 8; i++)
                 {
-                    bool myth = false;
-                    List<Card> availLegendaries = legendaries.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p) && !p.type.ToLower().Contains("land")).ToList();
-                    /* if (myth)
-                         availLegendaries = availLegendaries.Where(p => p.rarity != "mythic").ToList();*/
-                    Card c = availLegendaries[r.Next(0, availLegendaries.Count())];
-                    /* if (c.rarity == "mythic")
-                         myth = true;*/
-                    packCards.Add(c);
-                }
-                //rare/myth slot
-                /*  for (int l = 0; l < 6; l++)
-                  {
-                      bool myth = false;
-                      bool gotMyth = r.Next(0, 100) > 86;
-                      if (!myth && gotMyth)
+                    List<Card> packCards = new List<Card>();
+                    int lands = 0;
+                    bool banLands = lands >= 4;
+                    //legendaries
+                    for (int l = 0; l < 2; l++)
+                    {
+                        bool myth = false;
+                        List<Card> availLegendaries = legendaries.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p) && !p.type.ToLower().Contains("land")).ToList();
+                        /* if (myth)
+                             availLegendaries = availLegendaries.Where(p => p.rarity != "mythic").ToList();*/
+                        Card c = availLegendaries[r.Next(0, availLegendaries.Count())];
+                        /* if (c.rarity == "mythic")
+                             myth = true;*/
+                        packCards.Add(c);
+                    }
+                    //rare/myth slot
+                    /*  for (int l = 0; l < 6; l++)
                       {
-                          List<Card> availMyth = Myth.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p)).ToList();
+                          bool myth = false;
+                          bool gotMyth = r.Next(0, 100) > 86;
+                          if (!myth && gotMyth)
+                          {
+                              List<Card> availMyth = Myth.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p)).ToList();
+                              if (banLands)
+                                  availMyth = availMyth.Where(p => !p.type.ToLower().Contains("land")).ToList();
+                              Card c = availMyth[r.Next(0, availMyth.Count())];
+                              myth = true;
+                              packCards.Add(c);
+                              if (c.type.ToLower().Contains("land"))
+                                  lands++;
+                          }
+                          else
+                          {
+                              List<Card> availRare = rare.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p)).ToList();
+                              if (banLands)
+                                  availRare = availRare.Where(p => !p.type.ToLower().Contains("land")).ToList();
+                              Card c = availRare[r.Next(0, availRare.Count())];
+                              packCards.Add(c);
+                              if (c.type.ToLower().Contains("land"))
+                                  lands++;
+                          }
+                      }
+                      //uncommons
+                      for (int l = 0; l < 8; l++)
+                      {
+                          List<Card> availuncomm = uncom.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p)).ToList();
                           if (banLands)
-                              availMyth = availMyth.Where(p => !p.type.ToLower().Contains("land")).ToList();
-                          Card c = availMyth[r.Next(0, availMyth.Count())];
-                          myth = true;
+                              availuncomm = availuncomm.Where(p => !p.type.ToLower().Contains("land")).ToList();
+                          Card c = availuncomm[r.Next(0, availuncomm.Count())];
                           packCards.Add(c);
                           if (c.type.ToLower().Contains("land"))
                               lands++;
                       }
-                      else
+                      //commons
+                      for (int l = 0; l < 4; l++)
                       {
-                          List<Card> availRare = rare.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p)).ToList();
+                          List<Card> availcommon = common.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p)).ToList();
                           if (banLands)
-                              availRare = availRare.Where(p => !p.type.ToLower().Contains("land")).ToList();
-                          Card c = availRare[r.Next(0, availRare.Count())];
+                              availcommon = availcommon.Where(p => !p.type.ToLower().Contains("land")).ToList();
+                          Card c = availcommon[r.Next(0, availcommon.Count())];
                           packCards.Add(c);
                           if (c.type.ToLower().Contains("land"))
                               lands++;
-                      }
-                  }
-                  //uncommons
-                  for (int l = 0; l < 8; l++)
-                  {
-                      List<Card> availuncomm = uncom.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p)).ToList();
-                      if (banLands)
-                          availuncomm = availuncomm.Where(p => !p.type.ToLower().Contains("land")).ToList();
-                      Card c = availuncomm[r.Next(0, availuncomm.Count())];
-                      packCards.Add(c);
-                      if (c.type.ToLower().Contains("land"))
-                          lands++;
-                  }
-                  //commons
-                  for (int l = 0; l < 4; l++)
-                  {
-                      List<Card> availcommon = common.Where(p => !packCards.Contains(p) && !cardsInPacks.Contains(p)).ToList();
-                      if (banLands)
-                          availcommon = availcommon.Where(p => !p.type.ToLower().Contains("land")).ToList();
-                      Card c = availcommon[r.Next(0, availcommon.Count())];
-                      packCards.Add(c);
-                      if (c.type.ToLower().Contains("land"))
-                          lands++;
-                  }*/
-                if (themedraft)
-                {
-                    for (int l = 0; l < 9; l++)
+                      }*/
+                    if (themedraft)
                     {
-                        List<Card> availCards = CubeCards.Where(p => !packCards.Select(p => p.Nickname).ToList().Contains(p.Nickname)).ToList();
-                        Card c = availCards[r.Next(0, availCards.Count())];
+                        for (int l = 0; l < 9; l++)
+                        {
+                            List<Card> availCards = CubeCards.Where(p => !packCards.Select(p => p.Nickname).ToList().Contains(p.Nickname)).ToList();
+                            Card c = availCards[r.Next(0, availCards.Count())];
 
-                        packCards.Add(c);
-                        if (c.type.ToLower().Contains("land"))
-                            lands++;
+                            packCards.Add(c);
+                            if (c.type.ToLower().Contains("land"))
+                                lands++;
 
+                        }
+                        for (int l = 0; l < 9; l++)
+                        {
+                            List<string> TopCards = JsonConvert.DeserializeObject<List<string>>(new Data().TopCards);
+
+                            List<Card> availCards = CubeCards.Where(p => !packCards.Select(p => p.Nickname).ToList().Contains(p.Nickname)).ToList();
+                            availCards = availCards.Where(p => !TopCards.Contains(p.Nickname)).ToList();
+                            Card c = availCards[r.Next(0, availCards.Count())];
+
+                            packCards.Add(c);
+                            if (c.type.ToLower().Contains("land"))
+                                lands++;
+
+                        }
                     }
-                    for (int l = 0; l < 9; l++)
+                    else
                     {
-                        List<string> TopCards = JsonConvert.DeserializeObject<List<string>>(new Data().TopCards);
+                        for (int l = 0; l < 18; l++)
+                        {
+                            List<Card> availCards = CubeCards.Where(p => !packCards.Select(p => p.Nickname).ToList().Contains(p.Nickname)).ToList();
+                            Card c = availCards[r.Next(0, availCards.Count())];
 
-                        List<Card> availCards = CubeCards.Where(p => !packCards.Select(p => p.Nickname).ToList().Contains(p.Nickname)).ToList();
-                        availCards = availCards.Where(p => !TopCards.Contains(p.Nickname)).ToList();
-                        Card c = availCards[r.Next(0, availCards.Count())];
+                            packCards.Add(c);
+                            if (c.type.ToLower().Contains("land"))
+                                lands++;
 
-                        packCards.Add(c);
-                        if (c.type.ToLower().Contains("land"))
-                            lands++;
-
+                        }
                     }
+                    Packs.Add(packCards);
+                    cardsInPacks.AddRange(packCards);
+                    //progressBar1.Value = 50 + 6 * i;
                 }
-                else
-                {
-                    for (int l = 0; l < 18; l++)
-                    {
-                        List<Card> availCards = CubeCards.Where(p => !packCards.Select(p => p.Nickname).ToList().Contains(p.Nickname)).ToList();
-                        Card c = availCards[r.Next(0, availCards.Count())];
-
-                        packCards.Add(c);
-                        if (c.type.ToLower().Contains("land"))
-                            lands++;
-
-                    }
-                }
-                Packs.Add(packCards);
-                cardsInPacks.AddRange(packCards);
-                //progressBar1.Value = 50 + 6 * i;
+                allPacks.Add(Packs);
             }
-            allPacks.Add(Packs);
-        }
-        //LoadPack(allPacks[0][currentPackCount]);
-        CurrentPack = allPacks[0][currentPackCount];
-        loading = false;
-        progress = 100;
-        StateHasChanged();
+            //LoadPack(allPacks[0][currentPackCount]);
+            CurrentPack = allPacks[0][currentPackCount];
+            loading = false;
+            progress = 100;
+            StateHasChanged();
 
+        }
+        catch
+        {
+            Console.WriteLine("Submit Error");
+        }
     }
     public List<Card> RemoveBannedCards(List<Card> cubeCards)
     {
@@ -732,7 +768,7 @@
             SideBoardDeck.Add(card);
             UpdateGraphs();
         }
-        catch( Exception e)
+        catch (Exception e)
         {
             DisplayError(e.Message + " " + e.StackTrace);
         }
@@ -849,10 +885,12 @@
     }
     public void UpdateGraphs()
     {
-        cardList = Deck.Select(p => p.Nickname).ToList();
-        cardList.Add("");
-        cardList.AddRange(SideBoardDeck.Select(p => p.Nickname).ToList());
-        colordata = new ColorDataItem[] {
+        try
+        {
+            cardList = Deck.Select(p => p.Nickname).ToList();
+            cardList.Add("");
+            cardList.AddRange(SideBoardDeck.Select(p => p.Nickname).ToList());
+            colordata = new ColorDataItem[] {
         new ColorDataItem
         {
             Color = "W",
@@ -879,7 +917,7 @@
              Count = Deck.Where(p=>p.colors.ContainsKey(Card.CMCColor.G)).Sum(p=>p.colors[Card.CMCColor.G])
         },
     };
-        cmcdata = new CMCDataItem[] {
+            cmcdata = new CMCDataItem[] {
         new CMCDataItem
         {
             CMC = "1",
@@ -916,7 +954,7 @@
             Count = Deck.Where(p=>p.cmc >= 7).Count()
         },
     };
-        typedata = new TypeDataItem[] {
+            typedata = new TypeDataItem[] {
         new TypeDataItem
         {
             Type = "Creature",
@@ -948,7 +986,12 @@
             Count = Deck.Where(p=>p.type.ToLower().Contains("land")).Count()
         },
     };
-        StateHasChanged();
+            StateHasChanged();
+        }
+        catch
+        {
+            Console.WriteLine("UpdateGraph Error");
+        }
     }
     public Card JsonToCard(JToken card)
     {
@@ -960,7 +1003,7 @@
                 return null;*/
             setcard.rank = rank;
         }
-        catch {  }
+        catch { }
         string url = "";
         string lowresurl = "";
         string name = card["name"].ToString();
@@ -1101,89 +1144,101 @@
     }
     public void BotPicks(int botNumber, int packNumber, List<Card> Pack)
     {
-        DisplayError(string.Join(", ", BotCommanders.Where(p => p != null).Select(p => p.ToString())));
-        Console.WriteLine("bot pick: " + botNumber);
-        Card commander = BotCommanders[botNumber];
-        List<Card> bcards = BotCards[botNumber];
-        bool picked = false;
-
-        if (commander == null)
+        try
         {
-            //find legendary
-            List<Card> legendaries = Pack.Where(p => p.type.Contains("Legendary") && p.type.Contains("Creature")).ToList();
-            foreach (Card legend in legendaries.OrderBy(p => p.rank))
+			DisplayError(string.Join(", ", BotCommanders.Where(p => p != null).Select(p => p.ToString())));
+            Console.WriteLine("bot pick: " + botNumber);
+            Card commander = BotCommanders[botNumber];
+            List<Card> bcards = BotCards[botNumber];
+            bool picked = false;
+
+            if (commander == null)
             {
-                if (legend.colorIdentity.Where(p => p.Value).Count() <= 2)
-                    continue;
-                if (legend.rank < 3000)
+                //find legendary
+                List<Card> legendaries = Pack.Where(p => p.type.Contains("Legendary") && p.type.Contains("Creature")).ToList();
+                foreach (Card legend in legendaries.OrderBy(p => p.rank))
+                {
+                    if (legend.colorIdentity.Where(p => p.Value).Count() <= 2)
+                        continue;
+                    if (legend.rank < 3000)
+                    {
+                        PickCard(Pack, legend, botNumber);
+                        commander = legend;
+                        BotCommanders[botNumber] = commander;
+                        picked = true;
+                        break;
+                    }
+                }
+                if (picked)
+                    return;
+            }
+            if (commander == null && packNumber == 1)
+            {
+                //just choose legendary
+                List<Card> legendaries = Pack.Where(p => p.type.Contains("Legendary") && p.type.Contains("Creature")).ToList();
+                foreach (Card legend in legendaries.OrderBy(p => p.rank))
                 {
                     PickCard(Pack, legend, botNumber);
                     commander = legend;
-                    BotCommanders[botNumber] = commander;
                     picked = true;
                     break;
                 }
+                if (picked)
+                    return;
             }
-            if (picked)
-                return;
-        }
-        if (commander == null && packNumber == 1)
-        {
-            //just choose legendary
-            List<Card> legendaries = Pack.Where(p => p.type.Contains("Legendary") && p.type.Contains("Creature")).ToList();
-            foreach (Card legend in legendaries.OrderBy(p => p.rank))
+            if (commander == null)
             {
-                PickCard(Pack, legend, botNumber);
-                commander = legend;
-                picked = true;
-                break;
-            }
-            if (picked)
-                return;
-        }
-        if (commander == null)
-        {
-            //still no commander, emphasize artifacts and good cards
-            foreach (Card c in Pack.OrderBy(p => p.rank * (p.type.ToLower().Contains("artifact") ? 0.75f : 1)))
-            {
-                PickCard(Pack, c, botNumber);
-                break;
-            }
-        }
-        else
-        {
-            //ok choose for in colors
-            List<Card.CMCColor> commanderColors = commander.colorIdentity.Where(p => p.Value).Select(p => p.Key).ToList();
-            List<Card> commanderCards = Pack.Where(p => p.colorIdentity.All(p => p.Value == false || commanderColors.Contains(p.Key))).ToList();
-            foreach (Card cc in commanderCards.OrderBy(p => p.rank))
-            {
-                List<Card.CMCColor> cardColors = cc.colorIdentity.Where(p => p.Value).Select(p => p.Key).ToList();
-                if (cardColors.Any(p => !commanderColors.Contains(p)))
+                //still no commander, emphasize artifacts and good cards
+                foreach (Card c in Pack.OrderBy(p => p.rank * (p.type.ToLower().Contains("artifact") ? 0.75f : 1)))
                 {
-                    //this card isnt part of color identity
-                }
-                else
-                {
-                    PickCard(Pack, cc, botNumber);
-                    picked = true;
+                    PickCard(Pack, c, botNumber);
                     break;
                 }
             }
-            if (picked)
-                return;
-            foreach (Card c in Pack.OrderBy(p => p.rank * (p.type.ToLower().Contains("artifact") ? 0.75f : 1)))
+            else
             {
-                PickCard(Pack, c, botNumber);
-                break;
+                //ok choose for in colors
+                List<Card.CMCColor> commanderColors = commander.colorIdentity.Where(p => p.Value).Select(p => p.Key).ToList();
+                List<Card> commanderCards = Pack.Where(p => p.colorIdentity.All(p => p.Value == false || commanderColors.Contains(p.Key))).ToList();
+                foreach (Card cc in commanderCards.OrderBy(p => p.rank))
+                {
+                    List<Card.CMCColor> cardColors = cc.colorIdentity.Where(p => p.Value).Select(p => p.Key).ToList();
+                    if (cardColors.Any(p => !commanderColors.Contains(p)))
+                    {
+                        //this card isnt part of color identity
+                    }
+                    else
+                    {
+                        PickCard(Pack, cc, botNumber);
+                        picked = true;
+                        break;
+                    }
+                }
+                if (picked)
+                    return;
+                foreach (Card c in Pack.OrderBy(p => p.rank * (p.type.ToLower().Contains("artifact") ? 0.75f : 1)))
+                {
+                    PickCard(Pack, c, botNumber);
+                    break;
+                }
             }
         }
-
+        catch
+        {
+            Console.WriteLine("Botpick Error");
+        }
     }
     public void PickCard(List<Card> Pack, Card pick, int botNumber)
     {
-        if (debug)
-            Console.WriteLine(pick.Nickname + " : " + string.Join(",", pick.colorIdentity.Where(p => p.Value).Select(p => p.Key)));
-        Pack.Remove(pick);
-        BotCards[botNumber].Add(pick);
+        try {
+            if (debug)
+                Console.WriteLine(pick.Nickname + " : " + string.Join(",", pick.colorIdentity.Where(p => p.Value).Select(p => p.Key)));
+            Pack.Remove(pick);
+            BotCards[botNumber].Add(pick);
+        }
+        catch
+        {
+            Console.WriteLine("BotActualPick Error");
+        }
     }
 }
