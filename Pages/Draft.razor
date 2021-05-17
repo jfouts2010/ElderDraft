@@ -289,7 +289,7 @@
     List<int> selectedCards = new List<int>();
     bool fixlands = false;
     List<Card.CMCColor> orderColors = new List<Card.CMCColor>();
-    
+
     public SortTypes currentSort = SortTypes.Popularity;
     public bool sortreverse = false;
     public bool debug = false;
@@ -490,8 +490,8 @@
             if (orderColors.Count > 0)
             {
                 CurrentPack = CurrentPack.OrderByDescending(p => p.colorIdentity.Where(p => p.Value && p.Key != Card.CMCColor.C).All(x => orderColors.Contains(x.Key))).ToList();
-                Deck = Deck.OrderByDescending(p => p.colorIdentity.Where(p => p.Value).All(x => orderColors.Contains(x.Key))).ToList();
-                SideBoardDeck = SideBoardDeck.OrderByDescending(p => p.colorIdentity.Where(p => p.Value).All(x => orderColors.Contains(x.Key))).ToList();
+                Deck = Deck.OrderByDescending(p => p.colorIdentity.Where(p => p.Value && p.Key != Card.CMCColor.C).All(x => orderColors.Contains(x.Key))).ToList();
+                SideBoardDeck = SideBoardDeck.OrderByDescending(p => p.colorIdentity.Where(p => p.Value && p.Key != Card.CMCColor.C).All(x => orderColors.Contains(x.Key))).ToList();
             }
             StateHasChanged();
         }
@@ -1079,11 +1079,12 @@
             {
                 if (setcard.colors.ContainsKey(c))
                     continue;
+                bool identcount = colorid.Count > 0 ? colorid.Any(p => p.ToString()[0] == c.ToString()[0]) : false;
                 if (cmc > 0)
                 {
                     //not a land
                     int count = manacost.Count(p => p == c.ToString()[0]);
-                    bool identcount = colorid.Count > 0 ? colorid.Any(p => p.ToString()[0] == c.ToString()[0]) : false;
+                    //bool identcount = colorid.Count > 0 ? colorid.Any(p => p.ToString()[0] == c.ToString()[0]) : false;
                     if (count > 0)
                         setcard.colors.Add(c, count);
                     if (c == Card.CMCColor.C)
@@ -1097,6 +1098,7 @@
                     if (colorid.Any(p => p.ToString() == c.ToString()))
                     {
                         setcard.colors.Add(c, 0);
+                        setcard.colorIdentity.Add(c, identcount);
                     }
                     if (c == Card.CMCColor.C)
                         setcard.colorIdentity.Add(c, true);
@@ -1146,7 +1148,7 @@
     {
         try
         {
-			DisplayError(string.Join(", ", BotCommanders.Where(p => p != null).Select(p => p.ToString())));
+            DisplayError(string.Join(", ", BotCommanders.Where(p => p != null).Select(p => p.ToString())));
             Console.WriteLine("bot pick: " + botNumber);
             Card commander = BotCommanders[botNumber];
             List<Card> bcards = BotCards[botNumber];
