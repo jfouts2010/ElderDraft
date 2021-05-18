@@ -292,7 +292,7 @@
 
     public SortTypes currentSort = SortTypes.Popularity;
     public bool sortreverse = false;
-    public bool debug = true;
+    public bool debug = false;
     List<Card> BotCommanders = new List<Card>() { null, null, null, null, null, null, null };
     List<List<Card>> BotCards = new List<List<Card>>() { new List<Card>(), new List<Card>(), new List<Card>(), new List<Card>(), new List<Card>(), new List<Card>(), new List<Card>() };
     public enum SortTypes
@@ -822,9 +822,12 @@
 
             //code to go through each pack for bot picks
             int botNumber = 0;
-            for (int i = 0; i < 8; i++)
+            for (int i = 0; i < 7; i++)
             {
-                List<Card> pack = allPacks[packSelection][i];
+                int packnumber = (currentPackCount + i + 1) % 8;
+                if (debug)
+                    Console.WriteLine("Giving bot " + i + " pack number " + packnumber);
+                List<Card> pack = allPacks[packSelection][packnumber];
                 if (pack == allPacks[packSelection][currentPackCount])
                     continue;
                 /*Card botpick1 = pack.OrderBy(p => p.rank).ToList()[0];
@@ -1103,7 +1106,7 @@
                         setcard.colorIdentity.Add(c, true);
                 }
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 string x = e.Message;
                 DisplayError(e.ToString());
@@ -1181,6 +1184,7 @@
                 {
                     PickCard(Pack, legend, botNumber);
                     commander = legend;
+                    BotCommanders[botNumber] = commander;
                     picked = true;
                     break;
                 }
@@ -1217,6 +1221,12 @@
                 }
                 if (picked)
                     return;
+                if(debug)
+                {
+                    Console.Write("Had to pick off color");
+                    Console.WriteLine(string.Join(", ", Pack.Select(p => p.ToString())));
+                }
+
                 foreach (Card c in Pack.OrderBy(p => p.rank * (p.type.ToLower().Contains("artifact") ? 0.75f : 1)))
                 {
                     PickCard(Pack, c, botNumber);
@@ -1231,7 +1241,8 @@
     }
     public void PickCard(List<Card> Pack, Card pick, int botNumber)
     {
-        try {
+        try
+        {
             if (debug)
                 Console.WriteLine(pick.Nickname + " : " + string.Join(",", pick.colorIdentity.Where(p => p.Value).Select(p => p.Key)));
             Pack.Remove(pick);
