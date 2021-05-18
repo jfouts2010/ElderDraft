@@ -16,7 +16,7 @@ public class Card
 
     public override string ToString()
     {
-        return count + " " + Nickname + " [" + string.Join(",", colors.Select(p => p.Key)) + "] ";
+        return count + " " + Nickname;// + " [" + string.Join(",", colors.Select(p => p.Key)) + "] ";
     }
 
     public string Name { get; set; }

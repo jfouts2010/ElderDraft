@@ -292,7 +292,7 @@
 
     public SortTypes currentSort = SortTypes.Popularity;
     public bool sortreverse = false;
-    public bool debug = false;
+    public bool debug = true;
     List<Card> BotCommanders = new List<Card>() { null, null, null, null, null, null, null };
     List<List<Card>> BotCards = new List<List<Card>>() { new List<Card>(), new List<Card>(), new List<Card>(), new List<Card>(), new List<Card>(), new List<Card>(), new List<Card>() };
     public enum SortTypes
@@ -866,10 +866,9 @@
                         for (int i = 0; i < 7; i++)
                         {
                             Console.WriteLine("Bot: Commander:" + BotCommanders[i].Nickname + " Colors:" + string.Join(",", BotCommanders[i].colorIdentity.Where(p => p.Value).Select(p => p.Key)));
-                            string s = "";
-                            foreach (Card card in BotCards[i])
-                                s += card.Nickname + " : " + string.Join(",", card.colorIdentity.Where(p => p.Value).Select(p => p.Key)) + ", ";
-                            Console.WriteLine(s);
+                            foreach (Card c in BotCards[i])
+                                Console.WriteLine(c);
+                            Console.WriteLine("---------------------------------");
                         }
                     }
                 }
